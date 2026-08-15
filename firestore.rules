@@ -1,0 +1,84 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isInSpace(spaceId) {
+      // A user is in a space if their user doc points to this spaceId
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return userDoc != null && userDoc.data.spaceId == spaceId;
+    }
+
+    function isPartnerA(spaceId) {
+      let space = get(/databases/$(database)/documents/spaces/$(spaceId));
+      return space.data.partnerA.uid == request.auth.uid;
+    }
+
+    function isPartnerB(spaceId) {
+      let space = get(/databases/$(database)/documents/spaces/$(spaceId));
+      return space.data.partnerB != null && space.data.partnerB.uid == request.auth.uid;
+    }
+
+    // users/{uid} — only the owning user may read/write their own doc
+    // Exception: read is allowed for partner lookups (limited fields only via rules)
+    match /users/{uid} {
+      allow read: if isSignedIn() && request.auth.uid == uid;
+      allow create: if isSignedIn() && request.auth.uid == uid;
+      allow update: if isSignedIn() && request.auth.uid == uid
+        // Prevent client from writing sensitive server-only fields
+        && !request.resource.data.keys().hasAny(['encryptedRefreshToken']);
+    }
+
+    // spaces/{spaceId} — only paired partners may access
+    match /spaces/{spaceId} {
+      allow read: if isSignedIn() && isInSpace(spaceId);
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && isInSpace(spaceId);
+      allow delete: if false; // Spaces cannot be deleted via client
+
+      // Subcollections — all restricted to space members only
+      match /transactions/{docId} {
+        allow read, write: if isSignedIn() && isInSpace(spaceId);
+      }
+
+      match /budgets/{docId} {
+        allow read, write: if isSignedIn() && isInSpace(spaceId);
+      }
+
+      match /goals/{docId} {
+        allow read, write: if isSignedIn() && isInSpace(spaceId);
+      }
+
+      match /wishlist/{docId} {
+        allow read, write: if isSignedIn() && isInSpace(spaceId);
+      }
+
+      match /shifts/{docId} {
+        allow read, write: if isSignedIn() && isInSpace(spaceId);
+      }
+
+      match /reminders/{docId} {
+        allow read, write: if isSignedIn() && isInSpace(spaceId);
+      }
+
+      match /chores/{docId} {
+        allow read, write: if isSignedIn() && isInSpace(spaceId);
+      }
+
+      match /compliments/{docId} {
+        allow read, write: if isSignedIn() && isInSpace(spaceId);
+      }
+
+      match /checkins/{docId} {
+        allow read, write: if isSignedIn() && isInSpace(spaceId);
+      }
+
+      match /networth/{docId} {
+        allow read, write: if isSignedIn() && isInSpace(spaceId);
+      }
+    }
+  }
+}

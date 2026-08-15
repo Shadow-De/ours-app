@@ -1,26 +1,97 @@
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-paper: #F7F5F0;
+  --color-ink: #232220;
+  --color-partner-a: #2F6E62;
+  --color-partner-b: #5B5296;
+  --color-shared-gold: #C99A3C;
+  --color-alert: #B24C32;
+  --color-muted: #EBE9E3;
+  --color-muted-fg: #6B6865;
+  --color-border: #DDD9D2;
+  --color-card: #FFFFFF;
+
+  --font-display: "Fraunces", Georgia, serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", Consolas, monospace;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+*, *::before, *::after {
+  box-sizing: border-box;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+html, body {
+  background-color: #F7F5F0;
+  color: #232220;
+  font-family: "Inter", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Number formatting — IBM Plex Mono for all currency/stat values */
+.font-mono, [data-mono] {
+  font-family: "IBM Plex Mono", Consolas, monospace;
+  font-feature-settings: "tnum";
+  letter-spacing: -0.02em;
+}
+
+/* Display headings — Fraunces */
+.font-display, h1, h2 {
+  font-family: "Fraunces", Georgia, serif;
+  font-optical-sizing: auto;
+}
+
+/* The Braid SVG component */
+.braid-divider {
+  width: 100%;
+  height: 24px;
+  overflow: visible;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #DDD9D2;
+  border-radius: 2px;
+}
+
+/* Partner color utilities */
+.text-partner-a { color: #2F6E62; }
+.text-partner-b { color: #5B5296; }
+.text-shared-gold { color: #C99A3C; }
+.text-alert { color: #B24C32; }
+.bg-partner-a { background-color: #2F6E62; }
+.bg-partner-b { background-color: #5B5296; }
+.bg-shared-gold { background-color: #C99A3C; }
+.bg-alert { background-color: #B24C32; }
+
+/* Card base */
+.card {
+  background: #FFFFFF;
+  border-radius: 0.75rem;
+  border: 1px solid #DDD9D2;
+}
+
+/* Focus styles — accessible */
+:focus-visible {
+  outline: 2px solid #2F6E62;
+  outline-offset: 2px;
+  border-radius: 4px;
 }
