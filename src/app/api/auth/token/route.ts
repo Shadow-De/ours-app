@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
 
+import { getAuth } from "firebase-admin/auth";
+import { getFirestore } from "firebase-admin/firestore";
+import { getApps, initializeApp, cert } from "firebase-admin/app";
+
 /**
  * Lazily initialize Firebase Admin SDK to avoid build-time initialization.
  * Returns auth and db handles.
  */
 function getAdminServices() {
-  const { getAuth } = require("firebase-admin/auth");
-  const { getFirestore } = require("firebase-admin/firestore");
-  const { getApps, initializeApp, cert } = require("firebase-admin/app");
-
   if (!getApps().length) {
     initializeApp({
       credential: cert({
