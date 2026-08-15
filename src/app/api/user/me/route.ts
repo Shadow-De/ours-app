@@ -1,23 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { getAuth } from "firebase-admin/auth";
-import { getFirestore } from "firebase-admin/firestore";
-import { getApps, initializeApp, cert } from "firebase-admin/app";
+import * as admin from "firebase-admin";
 
 /**
  * Lazily initialize Firebase Admin SDK.
  */
 function getAdminServices() {
-  if (!getApps().length) {
-    initializeApp({
-      credential: cert({
-        projectId: process.env.FIREBASE_ADMIN_PROJECT_ID,
+  if (!admin.apps.length) {
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
         clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
-        privateKey: process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n").replace(/^"|"$/g, ""),
+        privateKey: process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n").replace(/^"|"$/g, ''),
       }),
     });
   }
-  return { adminAuth: getAuth(), adminDb: getFirestore() };
+  return { adminAuth: admin.auth(), adminDb: admin.firestore() };
 }
 
 /**
