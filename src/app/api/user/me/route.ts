@@ -1,29 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { getApps, initializeApp, cert } from "firebase-admin/app";
-import { getAuth } from "firebase-admin/auth";
-import { getFirestore } from "firebase-admin/firestore";
-
-/**
- * Lazily initialize Firebase Admin SDK.
- */
-function getAdminServices() {
-  if (!getApps().length) {
-    const app = initializeApp({
-      credential: cert({
-        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
-        privateKey: process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n").replace(/^"|"$/g, ''),
-      }),
-    });
-    getFirestore(app).settings({ preferRest: true });
+function decodeJwt(token: string) {
+  try {
+    const base64Url = token.split(".")[1];
+    if (!base64Url) return null;
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = Buffer.from(base64, "base64").toString("utf-8");
+    return JSON.parse(jsonPayload);
+  } catch {
+    return null;
   }
-  return { adminAuth: getAuth(), adminDb: getFirestore() };
 }
 
 /**
  * GET /api/user/me
- * Returns the current user's Firestore document via Admin SDK.
+ * Returns the current user's Firestore document via Firestore REST API.
  * Used as a fallback when the browser Firestore client is offline.
  *
  * Auth: Bearer <Firebase ID Token>
@@ -35,17 +26,45 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { adminAuth, adminDb } = getAdminServices();
     const idToken = authHeader.split("Bearer ")[1];
-    const decodedToken = await adminAuth.verifyIdToken(idToken);
-    const uid = decodedToken.uid;
+    const decodedToken = decodeJwt(idToken);
+    if (!decodedToken || !decodedToken.user_id) {
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    }
+    const uid = decodedToken.user_id;
 
-    const userSnap = await adminDb.collection("users").doc(uid).get();
-    if (!userSnap.exists) {
+    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    const getUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users/${uid}`;
+
+    const res = await fetch(getUrl, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+      },
+    });
+
+    if (res.status === 404) {
       return NextResponse.json({ exists: false }, { status: 200 });
     }
 
-    return NextResponse.json({ exists: true, data: userSnap.data() });
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error("Firestore REST error:", errorText);
+      throw new Error(`Firestore API returned ${res.status}: ${errorText.substring(0, 50)}`);
+    }
+
+    const data = await res.json();
+    
+    // Convert Firestore Document format to normal JS object
+    const userData: any = {};
+    if (data.fields) {
+      for (const [key, value] of Object.entries(data.fields)) {
+        const val = value as any;
+        userData[key] = val.stringValue ?? val.booleanValue ?? val.integerValue ?? val.timestampValue ?? null;
+      }
+    }
+
+    return NextResponse.json({ exists: true, data: userData });
   } catch (error) {
     console.error("Get user error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

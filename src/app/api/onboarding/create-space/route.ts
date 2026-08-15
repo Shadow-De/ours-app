@@ -1,29 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { getApps, initializeApp, cert } from "firebase-admin/app";
-import { getAuth } from "firebase-admin/auth";
-import { getFirestore } from "firebase-admin/firestore";
-
-/**
- * Lazily initialize Firebase Admin SDK.
- */
-function getAdminServices() {
-  if (!getApps().length) {
-    const app = initializeApp({
-      credential: cert({
-        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
-        privateKey: process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n").replace(/^"|"$/g, ''),
-      }),
-    });
-    getFirestore(app).settings({ preferRest: true });
+function decodeJwt(token: string) {
+  try {
+    const base64Url = token.split(".")[1];
+    if (!base64Url) return null;
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = Buffer.from(base64, "base64").toString("utf-8");
+    return JSON.parse(jsonPayload);
+  } catch {
+    return null;
   }
-  return { adminAuth: getAuth(), adminDb: getFirestore() };
 }
 
 /**
  * POST /api/onboarding/create-space
- * Creates the space and user documents server-side via Admin SDK.
+ * Creates the space and user documents server-side via Firestore REST API.
  * Bypasses the browser Firestore WebChannel which can get stuck offline.
  *
  * Body: { name: string }
@@ -36,10 +27,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { adminAuth, adminDb } = getAdminServices();
     const idToken = authHeader.split("Bearer ")[1];
-    const decodedToken = await adminAuth.verifyIdToken(idToken);
-    const uid = decodedToken.uid;
+    const decodedToken = decodeJwt(idToken);
+    if (!decodedToken || !decodedToken.user_id) {
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    }
+    const uid = decodedToken.user_id;
 
     const { name } = await request.json();
     if (!name?.trim()) {
@@ -47,30 +40,66 @@ export async function POST(request: NextRequest) {
     }
 
     const spaceId = crypto.randomUUID();
+    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 
-    // Use a batch write for atomicity
-    const batch = adminDb.batch();
+    // Use Firestore REST API batch commit
+    const commitUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:commit`;
+    const body = {
+      writes: [
+        {
+          update: {
+            name: `projects/${projectId}/databases/(default)/documents/spaces/${spaceId}`,
+            fields: {
+              status: { stringValue: "awaiting_partner" },
+              partnerA: {
+                mapValue: {
+                  fields: {
+                    uid: { stringValue: uid },
+                    realName: { stringValue: name.trim() },
+                    colorHex: { stringValue: "#2F6E62" },
+                  }
+                }
+              },
+              nicknames: {
+                mapValue: {
+                  fields: {
+                    forA: { stringValue: "" },
+                    forB: { stringValue: "" },
+                  }
+                }
+              },
+              createdAt: { timestampValue: new Date().toISOString() },
+            }
+          }
+        },
+        {
+          update: {
+            name: `projects/${projectId}/databases/(default)/documents/users/${uid}`,
+            fields: {
+              spaceId: { stringValue: spaceId },
+              role: { stringValue: "a" },
+              googleCalendarConnected: { booleanValue: false },
+              createdAt: { timestampValue: new Date().toISOString() },
+            }
+          }
+        }
+      ]
+    };
 
-    batch.set(adminDb.collection("spaces").doc(spaceId), {
-      status: "awaiting_partner",
-      partnerA: {
-        uid,
-        realName: name.trim(),
-        colorHex: "#2F6E62",
+    const res = await fetch(commitUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${idToken}`,
       },
-      partnerB: null,
-      nicknames: { forA: "", forB: "" },
-      createdAt: new Date().toISOString(),
+      body: JSON.stringify(body),
     });
 
-    batch.set(adminDb.collection("users").doc(uid), {
-      spaceId,
-      role: "a",
-      googleCalendarConnected: false,
-      createdAt: new Date().toISOString(),
-    });
-
-    await batch.commit();
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error("Firestore REST error:", errorText);
+      throw new Error(`Firestore API returned ${res.status}: ${errorText.substring(0, 50)}`);
+    }
 
     return NextResponse.json({ success: true, spaceId });
   } catch (error) {
