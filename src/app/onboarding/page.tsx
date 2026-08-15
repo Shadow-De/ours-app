@@ -71,7 +71,13 @@ export default function OnboardingPage() {
       });
 
       if (!res.ok) {
-        const data = await res.json();
+        const text = await res.text();
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch {
+          throw new Error(`Vercel error (${res.status}): ${text.substring(0, 50) || res.statusText}`);
+        }
         throw new Error(data.error || "Failed to create space");
       }
 
