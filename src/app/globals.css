@@ -1,19 +1,22 @@
-@import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
 @import "tailwindcss";
 
 @theme {
-  --color-paper: #F7F5F0;
-  --color-ink: #232220;
-  --color-partner-a: #2F6E62;
-  --color-partner-b: #5B5296;
-  --color-shared-gold: #C99A3C;
-  --color-alert: #B24C32;
-  --color-muted: #EBE9E3;
-  --color-muted-fg: #6B6865;
-  --color-border: #DDD9D2;
-  --color-card: #FFFFFF;
+  --color-background: #0F1210;
+  --color-surface: #1B1F1C;
+  --color-surface-raised: #232823;
+  --color-primary: #F5F7F3;
+  --color-muted: #8F968F;
+  --color-partner-a: #C9F24C;
+  --color-partner-b: #4CE0C9;
+  --color-shared-gold: #E8D24C;
+  --color-alert: #FF6B5C;
+  --color-border: #2A302A;
 
-  --font-display: "Fraunces", Georgia, serif;
+  --color-paper: #0F1210;
+  --color-ink: #F5F7F3;
+
+  --font-display: "Space Grotesk", sans-serif;
   --font-sans: "Inter", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", Consolas, monospace;
 }
@@ -23,9 +26,9 @@
 }
 
 html, body {
-  background-color: #F7F5F0;
-  color: #232220;
-  font-family: "Inter", system-ui, sans-serif;
+  background-color: var(--color-background);
+  color: var(--color-primary);
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -41,18 +44,17 @@ html, body {
 
 /* Number formatting — IBM Plex Mono for all currency/stat values */
 .font-mono, [data-mono] {
-  font-family: "IBM Plex Mono", Consolas, monospace;
+  font-family: var(--font-mono);
   font-feature-settings: "tnum";
   letter-spacing: -0.02em;
 }
 
-/* Display headings — Fraunces */
-.font-display, h1, h2 {
-  font-family: "Fraunces", Georgia, serif;
-  font-optical-sizing: auto;
+/* Display headings — Space Grotesk */
+.font-display, h1, h2, h3, h4 {
+  font-family: var(--font-display);
 }
 
-/* The Braid SVG component */
+/* The Braid SVG component (preserved if still used) */
 .braid-divider {
   width: 100%;
   height: 24px;
@@ -68,30 +70,31 @@ html, body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #DDD9D2;
+  background: var(--color-border);
   border-radius: 2px;
 }
 
 /* Partner color utilities */
-.text-partner-a { color: #2F6E62; }
-.text-partner-b { color: #5B5296; }
-.text-shared-gold { color: #C99A3C; }
-.text-alert { color: #B24C32; }
-.bg-partner-a { background-color: #2F6E62; }
-.bg-partner-b { background-color: #5B5296; }
-.bg-shared-gold { background-color: #C99A3C; }
-.bg-alert { background-color: #B24C32; }
+.text-partner-a { color: var(--color-partner-a); }
+.text-partner-b { color: var(--color-partner-b); }
+.text-shared-gold { color: var(--color-shared-gold); }
+.text-alert { color: var(--color-alert); }
+.bg-partner-a { background-color: var(--color-partner-a); color: var(--color-background); }
+.bg-partner-b { background-color: var(--color-partner-b); color: var(--color-background); }
+.bg-shared-gold { background-color: var(--color-shared-gold); color: var(--color-background); }
+.bg-alert { background-color: var(--color-alert); }
 
 /* Card base */
 .card {
-  background: #FFFFFF;
-  border-radius: 0.75rem;
-  border: 1px solid #DDD9D2;
+  background: var(--color-surface);
+  border-radius: 1.5rem; /* 24px */
+  border: none;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05); /* faint top highlight */
 }
 
 /* Focus styles — accessible */
 :focus-visible {
-  outline: 2px solid #2F6E62;
+  outline: 2px solid var(--color-partner-a);
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: 9999px;
 }

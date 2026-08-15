@@ -92,7 +92,7 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-paper flex flex-col items-center justify-center px-6 py-12">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 py-12">
       <motion.div
         className="w-full max-w-sm"
         initial={{ opacity: 0, y: 12 }}
@@ -101,7 +101,7 @@ export default function OnboardingPage() {
       >
         {/* Logo */}
         <div className="text-center mb-2">
-          <h1 className="font-display text-7xl font-light text-ink tracking-tight">
+          <h1 className="font-display text-7xl font-light text-primary tracking-tight">
             Us.
           </h1>
         </div>
@@ -109,7 +109,7 @@ export default function OnboardingPage() {
         {/* The Braid */}
         <BraidDivider className="mb-6" />
 
-        <p className="text-center text-ink/60 font-sans mb-10 text-base">
+        <p className="text-center text-muted font-sans mb-10 text-base">
           A private space for two.
         </p>
 
@@ -118,7 +118,7 @@ export default function OnboardingPage() {
             <button
               onClick={handleGoogleSignIn}
               disabled={loading}
-              className="w-full flex items-center justify-center gap-3 bg-white border border-border rounded-xl px-4 py-3.5 text-ink font-sans font-medium text-base transition-all hover:bg-paper/80 hover:border-partner-a focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-partner-a disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+              className="w-full flex items-center justify-center gap-3 bg-surface border border-white/10 rounded-full px-4 py-4 text-primary font-sans font-medium text-[15px] transition-all hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-partner-a disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <LoadingSpinner />
@@ -129,7 +129,7 @@ export default function OnboardingPage() {
                 </>
               )}
             </button>
-            <p className="text-center text-xs text-ink/40 font-sans">
+            <p className="text-center text-xs text-muted font-sans">
               This will ask for Google Calendar access
             </p>
             {error && (
@@ -145,7 +145,7 @@ export default function OnboardingPage() {
             className="space-y-4"
           >
             <div>
-              <label className="block text-sm font-sans font-medium text-ink/70 mb-1.5">
+              <label className="block text-sm font-sans font-medium text-muted mb-1.5">
                 What&apos;s your name?
               </label>
               <input
@@ -155,13 +155,13 @@ export default function OnboardingPage() {
                 onKeyDown={(e) => e.key === "Enter" && handleCreateSpace()}
                 placeholder="Your first name"
                 autoFocus
-                className="w-full bg-white border border-border rounded-xl px-4 py-3 text-ink font-sans text-base focus:outline-none focus:ring-2 focus:ring-partner-a focus:border-transparent placeholder:text-ink/30"
+                className="w-full bg-surface border-none rounded-2xl px-5 py-4 text-primary font-sans text-[15px] focus:outline-none focus:ring-2 focus:ring-partner-a placeholder:text-muted"
               />
             </div>
             <button
               onClick={handleCreateSpace}
               disabled={!name.trim() || loading}
-              className="w-full bg-partner-a text-white font-sans font-medium py-3.5 rounded-xl transition-all hover:bg-partner-a/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-partner-a focus-visible:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-full bg-partner-a text-background font-sans font-medium py-4 rounded-full transition-all hover:bg-partner-a/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-partner-a focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {loading ? "Creating space…" : "Start our space →"}
             </button>
@@ -201,7 +201,7 @@ function GoogleIcon() {
 function LoadingSpinner() {
   return (
     <svg
-      className="animate-spin w-5 h-5 text-ink/40"
+      className="animate-spin w-5 h-5 text-muted"
       fill="none"
       viewBox="0 0 24 24"
       aria-hidden="true"

@@ -35,7 +35,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   if (loading || !user || !userDoc?.spaceId || space?.status === "awaiting_partner") {
     return (
-      <div className="flex flex-col min-h-screen items-center justify-center bg-paper">
+      <div className="flex flex-col min-h-screen items-center justify-center bg-background">
         <svg className="animate-spin w-8 h-8 text-partner-a" fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -45,7 +45,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex flex-col min-h-screen max-w-lg mx-auto bg-paper">
+    <div className="flex flex-col min-h-screen max-w-lg mx-auto bg-background">
       {/* Page content — padded above the nav bar */}
       <main className="flex-1 overflow-y-auto pb-20">
         {children}
@@ -53,7 +53,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* Bottom tab bar */}
       <nav
-        className="fixed bottom-0 left-0 right-0 z-50 max-w-lg mx-auto bg-white border-t border-border"
+        className="fixed bottom-0 left-0 right-0 z-50 max-w-lg mx-auto bg-background/80 backdrop-blur-xl border-t border-white/5"
         role="navigation"
         aria-label="Main navigation"
       >
@@ -66,7 +66,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 href={href}
                 className={cn(
                   "flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 relative transition-colors",
-                  isActive ? "text-partner-a" : "text-ink/40 hover:text-ink/70"
+                  isActive ? "text-partner-a" : "text-muted hover:text-muted"
                 )}
                 aria-current={isActive ? "page" : undefined}
               >
@@ -84,7 +84,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           })}
         </div>
         {/* iOS safe area */}
-        <div className="h-safe-bottom bg-white" style={{ height: "env(safe-area-inset-bottom)" }} />
+        <div className="h-safe-bottom bg-transparent" style={{ height: "env(safe-area-inset-bottom)" }} />
       </nav>
     </div>
   );

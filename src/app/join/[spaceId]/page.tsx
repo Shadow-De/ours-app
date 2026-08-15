@@ -110,7 +110,7 @@ export default function JoinPage({ params }: JoinPageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-paper flex flex-col items-center justify-center px-6 py-12">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 py-12">
       <motion.div
         className="w-full max-w-sm"
         initial={{ opacity: 0, y: 12 }}
@@ -118,7 +118,7 @@ export default function JoinPage({ params }: JoinPageProps) {
         transition={{ duration: 0.35 }}
       >
         <div className="text-center mb-2">
-          <h1 className="font-display text-6xl font-light text-ink tracking-tight">
+          <h1 className="font-display text-6xl font-light text-primary tracking-tight">
             Us.
           </h1>
         </div>
@@ -128,10 +128,10 @@ export default function JoinPage({ params }: JoinPageProps) {
         {step === "signin" && (
           <div className="space-y-4">
             <div className="text-center mb-6">
-              <p className="text-xl font-sans font-medium text-ink">
+              <p className="text-xl font-sans font-medium text-primary">
                 Someone started your shared space.
               </p>
-              <p className="text-sm text-ink/50 mt-1">
+              <p className="text-sm text-muted mt-1">
                 Sign in with Google to join them.
               </p>
             </div>
@@ -139,13 +139,13 @@ export default function JoinPage({ params }: JoinPageProps) {
             <button
               onClick={handleSignIn}
               disabled={loading}
-              className="w-full flex items-center justify-center gap-3 bg-white border border-border rounded-xl px-4 py-3.5 text-ink font-sans font-medium text-base transition-all hover:bg-paper/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-partner-b disabled:opacity-50 shadow-sm"
+              className="w-full flex items-center justify-center gap-3 bg-surface border border-white/10 rounded-full px-4 py-4 text-primary font-sans font-medium text-[15px] transition-all hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-partner-b disabled:opacity-50"
             >
               {loading ? <LoadingSpinner /> : <GoogleIcon />}
               Continue with Google
             </button>
 
-            <p className="text-center text-xs text-ink/40 font-sans">
+            <p className="text-center text-xs text-muted font-sans">
               Just the two of you. Private and paired.
             </p>
 
@@ -162,13 +162,13 @@ export default function JoinPage({ params }: JoinPageProps) {
             className="space-y-4"
           >
             <div className="text-center mb-6">
-              <p className="text-xl font-sans font-medium text-ink">
+              <p className="text-xl font-sans font-medium text-primary">
                 <span className="text-partner-a">{partnerAName}</span> started your shared space.
               </p>
             </div>
 
             <div>
-              <label className="block text-sm font-sans font-medium text-ink/70 mb-1.5">
+              <label className="block text-sm font-sans font-medium text-muted mb-1.5">
                 What&apos;s your name?
               </label>
               <input
@@ -177,12 +177,12 @@ export default function JoinPage({ params }: JoinPageProps) {
                 onChange={(e) => setMyName(e.target.value)}
                 placeholder="Your first name"
                 autoFocus
-                className="w-full bg-white border border-border rounded-xl px-4 py-3 text-ink font-sans text-base focus:outline-none focus:ring-2 focus:ring-partner-b focus:border-transparent placeholder:text-ink/30"
+                className="w-full bg-surface border-none rounded-2xl px-5 py-4 text-primary font-sans text-[15px] focus:outline-none focus:ring-2 focus:ring-partner-b placeholder:text-muted"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-sans font-medium text-ink/70 mb-1.5">
+              <label className="block text-sm font-sans font-medium text-muted mb-1.5">
                 What should we call{" "}
                 <span className="text-partner-a">{partnerAName}</span>?
               </label>
@@ -192,9 +192,9 @@ export default function JoinPage({ params }: JoinPageProps) {
                 onChange={(e) => setNickname(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleJoin()}
                 placeholder={`e.g. ${partnerAName.split(" ")[0]} or a nickname`}
-                className="w-full bg-white border border-border rounded-xl px-4 py-3 text-ink font-sans text-base focus:outline-none focus:ring-2 focus:ring-partner-b focus:border-transparent placeholder:text-ink/30"
+                className="w-full bg-surface border-none rounded-2xl px-5 py-4 text-primary font-sans text-[15px] focus:outline-none focus:ring-2 focus:ring-partner-b placeholder:text-muted"
               />
-              <p className="text-xs text-ink/40 mt-1">
+              <p className="text-xs text-muted mt-2 ml-1">
                 Leave blank to use their name as-is
               </p>
             </div>
@@ -202,12 +202,12 @@ export default function JoinPage({ params }: JoinPageProps) {
             <button
               onClick={handleJoin}
               disabled={!myName.trim() || loading}
-              className="w-full bg-partner-b text-white font-sans font-medium py-3.5 rounded-xl transition-all hover:bg-partner-b/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-partner-b focus-visible:ring-offset-2 disabled:opacity-40"
+              className="w-full bg-partner-b text-background font-sans font-medium py-4 rounded-full transition-all hover:bg-partner-b/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-partner-b focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-40"
             >
               {loading ? "Joining…" : "Join the space →"}
             </button>
 
-            <p className="text-center text-xs text-ink/40">
+            <p className="text-center text-xs text-muted">
               Just the two of you. Private and paired.
             </p>
 
@@ -234,7 +234,7 @@ function GoogleIcon() {
 
 function LoadingSpinner() {
   return (
-    <svg className="animate-spin w-5 h-5 text-ink/40" fill="none" viewBox="0 0 24 24">
+    <svg className="animate-spin w-5 h-5 text-muted" fill="none" viewBox="0 0 24 24">
       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
     </svg>

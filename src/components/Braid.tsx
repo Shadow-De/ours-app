@@ -23,22 +23,22 @@ export function BraidDivider({ className = "", height = 20 }: BraidDividerProps)
       preserveAspectRatio="none"
       aria-hidden="true"
     >
-      {/* Partner A teal strand — sinusoidal wave */}
+      {/* Partner A neon lime strand */}
       <motion.path
         d="M0,10 C47,2 94,18 141,10 C188,2 235,18 282,10 C329,2 352,18 375,10"
         fill="none"
-        stroke="#2F6E62"
+        stroke="#C9F24C"
         strokeWidth="1.5"
         strokeLinecap="round"
         initial={shouldReduceMotion ? false : { pathLength: 0, opacity: 0 }}
         animate={{ pathLength: 1, opacity: 1 }}
         transition={{ duration: 0.8, ease: "easeOut" }}
       />
-      {/* Partner B violet strand — offset sinusoidal wave, creates the crossing effect */}
+      {/* Partner B neon aqua strand */}
       <motion.path
         d="M0,10 C47,18 94,2 141,10 C188,18 235,2 282,10 C329,18 352,2 375,10"
         fill="none"
-        stroke="#5B5296"
+        stroke="#4CE0C9"
         strokeWidth="1.5"
         strokeLinecap="round"
         initial={shouldReduceMotion ? false : { pathLength: 0, opacity: 0 }}
@@ -73,28 +73,27 @@ export function BraidProgressBar({
   const pct = Math.round(clampedProgress * 100);
 
   return (
-    <div className={`relative ${className}`}>
+    <div className={`relative flex flex-col ${className}`}>
+      {showLabel && (
+        <span className="self-end mb-1 text-xs font-mono text-muted">
+          {pct}%
+        </span>
+      )}
       {/* Track */}
       <div
-        className="w-full rounded-full overflow-hidden"
-        style={{ height, backgroundColor: "#EBE9E3" }}
+        className="w-full rounded-full overflow-hidden bg-surface-raised shadow-inner"
+        style={{ height }}
         role="progressbar"
         aria-valuenow={pct}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-label={`${pct}% complete`}
       >
-        {/* Fill — CSS gradient from teal → violet → gold */}
+        {/* Fill — CSS gradient from Partner A → Shared Gold → Partner B */}
         <motion.div
           className="h-full rounded-full"
           style={{
-            background: `linear-gradient(
-              to right,
-              #2F6E62 0%,
-              #2F6E62 30%,
-              #5B5296 60%,
-              #C99A3C 100%
-            )`,
+            background: `linear-gradient(to right, #C9F24C, #E8D24C, #4CE0C9)`,
             transformOrigin: "left center",
           }}
           initial={{ scaleX: 0 }}
@@ -106,11 +105,6 @@ export function BraidProgressBar({
           }
         />
       </div>
-      {showLabel && (
-        <span className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-full pl-2 text-xs font-mono text-ink/60">
-          {pct}%
-        </span>
-      )}
     </div>
   );
 }

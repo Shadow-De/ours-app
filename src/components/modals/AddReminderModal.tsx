@@ -70,7 +70,7 @@ export default function AddReminderModal({ onClose, spaceId }: AddReminderModalP
       <div className="space-y-4">
         {/* Reminder text */}
         <div>
-          <label className="block text-sm font-sans font-medium text-ink/70 mb-1.5">
+          <label className="block text-sm font-sans font-medium text-muted mb-1.5">
             What needs doing?
           </label>
           <input
@@ -79,13 +79,13 @@ export default function AddReminderModal({ onClose, spaceId }: AddReminderModalP
             onChange={(e) => setText(e.target.value)}
             placeholder="e.g. Book dentist appointment"
             autoFocus
-            className="w-full bg-white border border-border rounded-xl px-4 py-3 text-ink font-sans focus:outline-none focus:ring-2 focus:ring-partner-a"
+            className="w-full bg-surface border-none rounded-xl px-4 py-3 text-primary font-sans focus:outline-none focus:ring-2 focus:ring-partner-a"
           />
         </div>
 
         {/* Assign to */}
         <div>
-          <label className="block text-sm font-sans font-medium text-ink/70 mb-1.5">
+          <label className="block text-sm font-sans font-medium text-muted mb-1.5">
             For
           </label>
           <div className="grid grid-cols-2 gap-2">
@@ -96,9 +96,9 @@ export default function AddReminderModal({ onClose, spaceId }: AddReminderModalP
                 className={`py-2.5 rounded-xl text-sm font-sans font-medium transition-colors ${
                   assignedTo === p
                     ? p === "a"
-                      ? "bg-partner-a text-white"
-                      : "bg-partner-b text-white"
-                    : "bg-white border border-border text-ink/50"
+                      ? "bg-partner-a text-background"
+                      : "bg-partner-b text-background"
+                    : "bg-surface border-none text-muted"
                 }`}
               >
                 {displayName(p)}
@@ -109,15 +109,15 @@ export default function AddReminderModal({ onClose, spaceId }: AddReminderModalP
 
         {/* Due date */}
         <div>
-          <label className="block text-sm font-sans font-medium text-ink/70 mb-1.5">
-            Due date <span className="text-ink/30">(optional — adds to their calendar)</span>
+          <label className="block text-sm font-sans font-medium text-muted mb-1.5">
+            Due date <span className="text-muted">(optional — adds to their calendar)</span>
           </label>
           <input
             type="date"
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
             min={toDateString(new Date())}
-            className="w-full bg-white border border-border rounded-xl px-4 py-3 text-ink font-sans focus:outline-none focus:ring-2 focus:ring-partner-a"
+            className="w-full bg-surface border-none rounded-xl px-4 py-3 text-primary font-sans focus:outline-none focus:ring-2 focus:ring-partner-a"
           />
         </div>
 
@@ -130,7 +130,7 @@ export default function AddReminderModal({ onClose, spaceId }: AddReminderModalP
         <button
           onClick={handleSave}
           disabled={!text.trim() || saving}
-          className="w-full py-3.5 bg-shared-gold text-white font-sans font-medium rounded-xl hover:bg-shared-gold/90 transition-colors disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-shared-gold"
+          className="w-full py-3.5 bg-shared-gold text-background font-sans font-medium rounded-xl hover:bg-shared-gold/90 transition-colors disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-shared-gold"
         >
           {saving ? "Saving…" : "Send nudge"}
         </button>

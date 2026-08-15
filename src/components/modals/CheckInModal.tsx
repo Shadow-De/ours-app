@@ -26,12 +26,12 @@ export default function CheckInModal({ onClose, spaceId }: { onClose: () => void
   return (
     <Modal title="Weekly Check-In" onClose={onClose}>
       <div className="space-y-4">
-        <p className="text-sm font-sans text-ink/60">How did money & time feel this week?</p>
+        <p className="text-sm font-sans text-muted">How did money & time feel this week?</p>
         <textarea value={note} onChange={(e) => setNote(e.target.value)}
           placeholder="Felt like a good week financially. Work was busy but we managed..." autoFocus rows={5}
-          className="w-full bg-white border border-border rounded-xl px-4 py-3 text-ink font-sans resize-none focus:outline-none focus:ring-2 focus:ring-partner-a" />
+          className="w-full bg-surface border-none rounded-xl px-4 py-3 text-primary font-sans resize-none focus:outline-none focus:ring-2 focus:ring-partner-a" />
         <button onClick={handleSave} disabled={!note.trim() || saving}
-          className="w-full py-3.5 bg-partner-a text-white font-sans font-medium rounded-xl hover:bg-partner-a/90 transition-colors disabled:opacity-40">
+          className="w-full py-3.5 bg-partner-a text-background font-sans font-medium rounded-xl hover:bg-partner-a/90 transition-colors disabled:opacity-40">
           {saving ? "Saving…" : "Submit check-in"}
         </button>
       </div>

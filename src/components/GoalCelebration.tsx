@@ -36,7 +36,7 @@ export default function GoalCelebration({ goalName, onDone }: GoalCelebrationPro
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    const colors = ["#2F6E62", "#5B5296", "#C99A3C", "#F7F5F0"];
+    const colors = ["#C9F24C", "#4CE0C9", "#E8D24C", "#F5F7F3"];
     const particles: Array<{
       x: number; y: number; vx: number; vy: number;
       color: string; size: number; rotation: number; rotSpeed: number;
@@ -86,7 +86,7 @@ export default function GoalCelebration({ goalName, onDone }: GoalCelebrationPro
 
   return (
     <motion.div
-      className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-paper/95"
+      className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-background/95"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -127,7 +127,7 @@ export default function GoalCelebration({ goalName, onDone }: GoalCelebrationPro
           🎉
         </motion.div>
 
-        <h1 className="font-display text-4xl font-light text-ink mb-3">
+        <h1 className="font-display text-4xl font-light text-primary mb-3">
           Goal complete!
         </h1>
 
@@ -145,8 +145,9 @@ export default function GoalCelebration({ goalName, onDone }: GoalCelebrationPro
           <motion.path
             d="M0,10 C25,2 50,18 75,10 C100,2 125,18 150,10 C175,2 190,18 200,10"
             fill="none"
-            stroke="#2F6E62"
-            strokeWidth="2"
+            stroke="#C9F24C"
+            strokeWidth="3"
+            style={{ filter: "drop-shadow(0 0 8px #C9F24C)" }}
             initial={{ pathLength: 0 }}
             animate={{ pathLength: 1 }}
             transition={{ duration: 0.8, delay: 0.3 }}
@@ -154,15 +155,16 @@ export default function GoalCelebration({ goalName, onDone }: GoalCelebrationPro
           <motion.path
             d="M0,10 C25,18 50,2 75,10 C100,18 125,2 150,10 C175,18 190,2 200,10"
             fill="none"
-            stroke="#5B5296"
-            strokeWidth="2"
+            stroke="#4CE0C9"
+            strokeWidth="3"
+            style={{ filter: "drop-shadow(0 0 8px #4CE0C9)" }}
             initial={{ pathLength: 0 }}
             animate={{ pathLength: 1 }}
             transition={{ duration: 0.8, delay: 0.4 }}
           />
         </svg>
 
-        <p className="text-sm font-sans text-ink/50">
+        <p className="text-sm font-sans text-muted">
           Tap anywhere to continue
         </p>
       </motion.div>

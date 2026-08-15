@@ -31,20 +31,20 @@ export default function NicknameModal({ onClose, spaceId, partnerRole, partnerRe
   return (
     <Modal title={`Nickname for ${partnerRealName}`} onClose={onClose}>
       <div className="space-y-4">
-        <p className="text-sm text-ink/60 font-sans">
+        <p className="text-sm text-muted font-sans">
           This is how {partnerRealName} will appear throughout the app.
         </p>
         <div>
-          <label className="block text-sm font-sans font-medium text-ink/70 mb-1.5">
+          <label className="block text-sm font-sans font-medium text-muted mb-1.5">
             What should we call {partnerRealName}?
           </label>
           <input type="text" value={nickname} onChange={(e) => setNickname(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSave()}
             placeholder={`e.g. ${partnerRealName.split(" ")[0]}`} autoFocus
-            className="w-full bg-white border border-border rounded-xl px-4 py-3 text-ink font-sans focus:outline-none focus:ring-2 focus:ring-partner-a" />
+            className="w-full bg-surface border-none rounded-xl px-4 py-3 text-primary font-sans focus:outline-none focus:ring-2 focus:ring-partner-a" />
         </div>
         <button onClick={handleSave} disabled={!nickname.trim() || saving}
-          className="w-full py-3.5 bg-partner-a text-white font-sans font-medium rounded-xl hover:bg-partner-a/90 transition-colors disabled:opacity-40">
+          className="w-full py-3.5 bg-partner-a text-background font-sans font-medium rounded-xl hover:bg-partner-a/90 transition-colors disabled:opacity-40">
           {saving ? "Saving…" : "Set nickname"}
         </button>
       </div>

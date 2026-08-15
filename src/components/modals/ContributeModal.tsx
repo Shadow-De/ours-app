@@ -62,10 +62,10 @@ export default function ContributeModal({ goal, onClose, spaceId }: ContributeMo
       <div className="space-y-4">
         {/* Current progress summary */}
         <div className="bg-muted rounded-xl px-4 py-3">
-          <p className="font-mono text-sm text-ink/60">
+          <p className="font-mono text-sm text-muted">
             {formatCurrency(goal.current)} raised of {formatCurrency(goal.target)}
           </p>
-          <div className="mt-2 h-1.5 bg-white rounded-full overflow-hidden">
+          <div className="mt-2 h-1.5 bg-surface rounded-full overflow-hidden">
             <div
               className="h-full rounded-full bg-gradient-to-r from-partner-a via-partner-b to-shared-gold transition-all"
               style={{ width: `${Math.min(100, (goal.current / goal.target) * 100)}%` }}
@@ -75,11 +75,11 @@ export default function ContributeModal({ goal, onClose, spaceId }: ContributeMo
 
         {/* Amount */}
         <div>
-          <label className="block text-sm font-sans font-medium text-ink/70 mb-1.5">
+          <label className="block text-sm font-sans font-medium text-muted mb-1.5">
             Amount
           </label>
           <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-ink/40 font-mono">£</span>
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted font-mono">£</span>
             <input
               type="number"
               inputMode="decimal"
@@ -87,11 +87,11 @@ export default function ContributeModal({ goal, onClose, spaceId }: ContributeMo
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0.00"
               autoFocus
-              className="w-full pl-8 pr-4 py-3 bg-white border border-border rounded-xl font-mono text-ink text-lg focus:outline-none focus:ring-2 focus:ring-partner-a"
+              className="w-full pl-8 pr-4 py-3 bg-surface border-none rounded-xl font-mono text-primary text-lg focus:outline-none focus:ring-2 focus:ring-partner-a"
             />
           </div>
           {parseFloat(amount) > 0 && (
-            <p className="text-xs font-mono text-ink/50 mt-1.5">
+            <p className="text-xs font-mono text-muted mt-1.5">
               New total: {formatCurrency(newTotal)} ({Math.round(newProgress)}%)
             </p>
           )}
@@ -103,7 +103,7 @@ export default function ContributeModal({ goal, onClose, spaceId }: ContributeMo
             className={`w-5 h-5 rounded flex-shrink-0 border-2 transition-colors mt-0.5 flex items-center justify-center ${
               isSurprise
                 ? "bg-shared-gold border-shared-gold"
-                : "border-border bg-white"
+                : "bg-surface border-none"
             }`}
             role="checkbox"
             aria-checked={isSurprise}
@@ -112,14 +112,14 @@ export default function ContributeModal({ goal, onClose, spaceId }: ContributeMo
             onKeyDown={(e) => e.key === " " && setIsSurprise(!isSurprise)}
           >
             {isSurprise && (
-              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12">
+              <svg className="w-3 h-3 text-background" fill="none" viewBox="0 0 12 12">
                 <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
               </svg>
             )}
           </div>
           <div>
-            <p className="text-sm font-sans font-medium text-ink">🎁 Keep it a surprise</p>
-            <p className="text-xs text-ink/50 font-sans mt-0.5">
+            <p className="text-sm font-sans font-medium text-primary">🎁 Keep it a surprise</p>
+            <p className="text-xs text-muted font-sans mt-0.5">
               Amount counts toward the goal, but who contributed is hidden until revealed.
             </p>
           </div>
@@ -128,7 +128,7 @@ export default function ContributeModal({ goal, onClose, spaceId }: ContributeMo
         <button
           onClick={handleContribute}
           disabled={!amount || parseFloat(amount) <= 0 || saving}
-          className="w-full py-3.5 bg-partner-a text-white font-sans font-medium rounded-xl hover:bg-partner-a/90 transition-colors disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-partner-a"
+          className="w-full py-3.5 bg-partner-a text-background font-sans font-medium rounded-xl hover:bg-partner-a/90 transition-colors disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-partner-a"
         >
           {saving ? "Saving…" : isSurprise ? "🎁 Add mystery contribution" : "Contribute"}
         </button>

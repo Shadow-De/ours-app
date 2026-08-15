@@ -85,7 +85,7 @@ export default function AddShiftModal({ onClose, spaceId, defaultDay }: AddShift
       <div className="space-y-4">
         {/* For whom */}
         <div>
-          <label className="block text-sm font-sans font-medium text-ink/70 mb-1.5">
+          <label className="block text-sm font-sans font-medium text-muted mb-1.5">
             For
           </label>
           <div className="grid grid-cols-2 gap-2">
@@ -96,9 +96,9 @@ export default function AddShiftModal({ onClose, spaceId, defaultDay }: AddShift
                 className={`py-2.5 rounded-xl text-sm font-sans font-medium transition-colors ${
                   person === p
                     ? p === "a"
-                      ? "bg-partner-a text-white"
-                      : "bg-partner-b text-white"
-                    : "bg-white border border-border text-ink/50"
+                      ? "bg-partner-a text-background"
+                      : "bg-partner-b text-background"
+                    : "bg-surface border-none text-muted"
                 }`}
               >
                 {displayName(p)}
@@ -109,7 +109,7 @@ export default function AddShiftModal({ onClose, spaceId, defaultDay }: AddShift
 
         {/* Day */}
         <div>
-          <label className="block text-sm font-sans font-medium text-ink/70 mb-1.5">
+          <label className="block text-sm font-sans font-medium text-muted mb-1.5">
             Day
           </label>
           <div className="flex gap-1.5 flex-wrap">
@@ -119,8 +119,8 @@ export default function AddShiftModal({ onClose, spaceId, defaultDay }: AddShift
                 onClick={() => setDay(value)}
                 className={`px-3 py-2 rounded-lg text-xs font-sans font-medium transition-colors ${
                   day === value
-                    ? "bg-partner-a text-white"
-                    : "bg-white border border-border text-ink/60"
+                    ? "bg-partner-a text-background"
+                    : "bg-surface border-none text-muted"
                 }`}
               >
                 {label}
@@ -131,39 +131,39 @@ export default function AddShiftModal({ onClose, spaceId, defaultDay }: AddShift
             type="date"
             value={day}
             onChange={(e) => setDay(e.target.value)}
-            className="mt-2 w-full bg-white border border-border rounded-xl px-4 py-2.5 text-ink font-sans text-sm focus:outline-none focus:ring-2 focus:ring-partner-a"
+            className="mt-2 w-full bg-surface border-none rounded-xl px-4 py-2.5 text-primary font-sans text-sm focus:outline-none focus:ring-2 focus:ring-partner-a"
           />
         </div>
 
         {/* Time range */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-sm font-sans font-medium text-ink/70 mb-1.5">
+            <label className="block text-sm font-sans font-medium text-muted mb-1.5">
               Start
             </label>
             <input
               type="time"
               value={start}
               onChange={(e) => setStart(e.target.value)}
-              className="w-full bg-white border border-border rounded-xl px-4 py-3 text-ink font-mono focus:outline-none focus:ring-2 focus:ring-partner-a"
+              className="w-full bg-surface border-none rounded-xl px-4 py-3 text-primary font-mono focus:outline-none focus:ring-2 focus:ring-partner-a"
             />
           </div>
           <div>
-            <label className="block text-sm font-sans font-medium text-ink/70 mb-1.5">
+            <label className="block text-sm font-sans font-medium text-muted mb-1.5">
               End
             </label>
             <input
               type="time"
               value={end}
               onChange={(e) => setEnd(e.target.value)}
-              className="w-full bg-white border border-border rounded-xl px-4 py-3 text-ink font-mono focus:outline-none focus:ring-2 focus:ring-partner-a"
+              className="w-full bg-surface border-none rounded-xl px-4 py-3 text-primary font-mono focus:outline-none focus:ring-2 focus:ring-partner-a"
             />
           </div>
         </div>
 
         {/* Computed hours */}
         {hours > 0 && (
-          <p className="text-sm font-mono text-ink/60 text-center">
+          <p className="text-sm font-mono text-muted text-center">
             {hours.toFixed(1)} hours
           </p>
         )}
@@ -181,12 +181,12 @@ export default function AddShiftModal({ onClose, spaceId, defaultDay }: AddShift
             onKeyDown={(e) => e.key === " " && setWfh(!wfh)}
           >
             <div
-              className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform shadow-sm ${
+              className={`absolute top-1 w-4 h-4 bg-surface rounded-full transition-transform  ${
                 wfh ? "translate-x-6" : "translate-x-1"
               }`}
             />
           </div>
-          <span className="text-sm font-sans text-ink">Working from home 🏠</span>
+          <span className="text-sm font-sans text-primary">Working from home 🏠</span>
         </label>
 
         {/* Calendar sync message */}
@@ -199,7 +199,7 @@ export default function AddShiftModal({ onClose, spaceId, defaultDay }: AddShift
         <button
           onClick={handleSave}
           disabled={hours <= 0 || saving}
-          className="w-full py-3.5 bg-partner-a text-white font-sans font-medium rounded-xl hover:bg-partner-a/90 transition-colors disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-partner-a"
+          className="w-full py-3.5 bg-partner-a text-background font-sans font-medium rounded-xl hover:bg-partner-a/90 transition-colors disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-partner-a"
         >
           {saving ? "Saving…" : "Save shift"}
         </button>

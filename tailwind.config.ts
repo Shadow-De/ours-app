@@ -10,53 +10,33 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Core palette — Section 9
-        paper: "#F7F5F0",
-        ink: "#232220",
-        "partner-a": "#2F6E62",
-        "partner-b": "#5B5296",
-        "shared-gold": "#C99A3C",
-        alert: "#B24C32",
-        // Semantic aliases
-        background: "#F7F5F0",
-        foreground: "#232220",
-        primary: {
-          DEFAULT: "#2F6E62",
-          foreground: "#F7F5F0",
-        },
-        secondary: {
-          DEFAULT: "#5B5296",
-          foreground: "#F7F5F0",
-        },
-        accent: {
-          DEFAULT: "#C99A3C",
-          foreground: "#232220",
-        },
-        destructive: {
-          DEFAULT: "#B24C32",
-          foreground: "#F7F5F0",
-        },
-        muted: {
-          DEFAULT: "#EBE9E3",
-          foreground: "#6B6865",
-        },
-        card: {
-          DEFAULT: "#FFFFFF",
-          foreground: "#232220",
-        },
-        border: "#DDD9D2",
-        input: "#DDD9D2",
-        ring: "#2F6E62",
+        // Dark Neon Palette
+        background: "#0F1210",
+        surface: "#1B1F1C",
+        "surface-raised": "#232823",
+        primary: "#F5F7F3",
+        muted: "#8F968F",
+        "partner-a": "#C9F24C",
+        "partner-b": "#4CE0C9",
+        "shared-gold": "#E8D24C",
+        alert: "#FF6B5C",
+        border: "#2A302A",
+        input: "#2A302A",
+        ring: "#C9F24C",
+
+        // Aliases to avoid breaking current usage before global replace
+        paper: "#0F1210",
+        ink: "#F5F7F3",
       },
       fontFamily: {
-        display: ["Fraunces", "Georgia", "serif"],
+        display: ["Space Grotesk", "sans-serif"],
         sans: ["Inter", "system-ui", "sans-serif"],
         mono: ["IBM Plex Mono", "Consolas", "monospace"],
       },
       borderRadius: {
-        lg: "0.75rem",
-        md: "0.5rem",
-        sm: "0.375rem",
+        lg: "1.75rem", // 28px
+        md: "1.25rem", // 20px
+        sm: "0.75rem", // 12px
       },
       keyframes: {
         "fade-in": {

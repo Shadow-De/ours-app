@@ -27,12 +27,12 @@ export default function AddComplimentModal({ onClose, spaceId }: { onClose: () =
     <Modal title="Leave a Little Win 💛" onClose={onClose}>
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-sans font-medium text-ink/70 mb-1.5">What do you appreciate?</label>
+          <label className="block text-sm font-sans font-medium text-muted mb-1.5">What do you appreciate?</label>
           <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="e.g. You handled that call so well today 💛" autoFocus rows={4}
-            className="w-full bg-white border border-border rounded-xl px-4 py-3 text-ink font-sans resize-none focus:outline-none focus:ring-2 focus:ring-shared-gold" />
+            className="w-full bg-surface border-none rounded-xl px-4 py-3 text-primary font-sans resize-none focus:outline-none focus:ring-2 focus:ring-shared-gold" />
         </div>
         <button onClick={handleSave} disabled={!text.trim() || saving}
-          className="w-full py-3.5 bg-shared-gold text-white font-sans font-medium rounded-xl hover:bg-shared-gold/90 transition-colors disabled:opacity-40">
+          className="w-full py-3.5 bg-shared-gold text-background font-sans font-medium rounded-xl hover:bg-shared-gold/90 transition-colors disabled:opacity-40">
           {saving ? "Sending…" : "Send little win 💛"}
         </button>
       </div>

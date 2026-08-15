@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#F7F5F0",
+  themeColor: "#0F1210",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -36,7 +36,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
-      <body className="bg-paper text-ink min-h-screen font-sans antialiased">
+      <body className="bg-background text-primary min-h-screen font-sans antialiased">
         <AuthProvider>
           {children}
         </AuthProvider>

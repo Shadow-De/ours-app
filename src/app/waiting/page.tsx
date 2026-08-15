@@ -60,7 +60,7 @@ export default function WaitingPage() {
   const partnerAName = space?.partnerA?.realName ?? user?.displayName ?? "you";
 
   return (
-    <div className="min-h-screen bg-paper flex flex-col items-center justify-center px-6 py-12">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 py-12">
       <motion.div
         className="w-full max-w-sm text-center"
         initial={{ opacity: 0, y: 12 }}
@@ -68,38 +68,38 @@ export default function WaitingPage() {
         transition={{ duration: 0.35 }}
       >
         {/* Logo */}
-        <h1 className="font-display text-6xl font-light text-ink tracking-tight mb-2">
+        <h1 className="font-display text-6xl font-light text-primary tracking-tight mb-2">
           Us.
         </h1>
 
         {/* The Braid — animated, feeling of anticipation */}
         <BraidDivider className="mb-8" />
 
-        <p className="text-2xl font-sans font-medium text-ink mb-1">
+        <p className="text-2xl font-sans font-medium text-primary mb-1">
           Waiting on your partner 🕊️
         </p>
-        <p className="text-sm text-ink/50 font-sans mb-8">
+        <p className="text-sm text-muted font-sans mb-8">
           We&apos;ll update as soon as they join.
         </p>
 
         {/* Invite link card */}
-        <div className="bg-white border border-border rounded-xl p-4 mb-4 text-left">
-          <p className="text-xs text-ink/50 font-sans mb-2 uppercase tracking-wide font-medium">
+        <div className="bg-surface rounded-2xl p-5 mb-5 text-left border-t border-white/5">
+          <p className="text-[10px] text-muted font-sans mb-3 uppercase tracking-wider font-bold ml-1">
             Invite link
           </p>
-          <div className="flex items-center gap-2">
-            <p className="text-sm font-mono text-ink/80 truncate flex-1">
+          <div className="flex items-center gap-2 bg-background rounded-xl p-3">
+            <p className="text-sm font-mono text-muted truncate flex-1">
               {inviteUrl || "Generating link…"}
             </p>
             <button
               onClick={handleCopy}
-              className="p-2 rounded-lg hover:bg-paper transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-partner-a"
+              className="p-2 rounded-lg hover:bg-surface-raised transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-partner-a"
               aria-label="Copy invite link"
             >
               {copied ? (
                 <Check className="w-4 h-4 text-partner-a" />
               ) : (
-                <Copy className="w-4 h-4 text-ink/40" />
+                <Copy className="w-4 h-4 text-muted" />
               )}
             </button>
           </div>
@@ -107,9 +107,9 @@ export default function WaitingPage() {
 
         <button
           onClick={handleShare}
-          className="w-full bg-partner-a text-white font-sans font-medium py-3.5 rounded-xl flex items-center justify-center gap-2 hover:bg-partner-a/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-partner-a focus-visible:ring-offset-2"
+          className="w-full bg-partner-a text-background font-sans font-medium py-4 rounded-full flex items-center justify-center gap-2 hover:bg-partner-a/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-partner-a focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
-          <Share2 className="w-4 h-4" />
+          <Share2 className="w-5 h-5" />
           Share invite link
         </button>
 

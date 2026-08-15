@@ -20,6 +20,7 @@ import { PartnerAvatar } from "@/components/PartnerAvatar";
 import { cn, formatCurrency, getGreeting, getWeekOf, toDateString, computeBalance, formatBalance } from "@/lib/utils";
 import { Transaction, Reminder, Goal, Shift } from "@/lib/types";
 import { format, startOfWeek, addDays, isToday } from "date-fns";
+import { Wallet, Clock, Bell, Star } from "lucide-react";
 import AddTransactionModal from "@/components/modals/AddTransactionModal";
 import AddShiftModal from "@/components/modals/AddShiftModal";
 import AddReminderModal from "@/components/modals/AddReminderModal";
@@ -148,7 +149,7 @@ export default function HomePage() {
 
   if (!user || !userDoc || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-paper">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-spin w-6 h-6 border-2 border-partner-a border-t-transparent rounded-full" />
       </div>
     );
@@ -158,7 +159,7 @@ export default function HomePage() {
     <div className="px-4 pt-6 pb-4">
       {/* Header */}
       <header className="flex items-start justify-between mb-1">
-        <h1 className="font-display text-4xl font-light text-ink tracking-tight">
+        <h1 className="font-display text-4xl font-light text-primary tracking-tight">
           Us.
         </h1>
         <div className="flex items-center gap-2 mt-1">
@@ -169,7 +170,7 @@ export default function HomePage() {
 
       <BraidDivider className="mb-4" />
 
-      <p className="text-lg font-sans font-medium text-ink mb-4">
+      <p className="text-lg font-sans font-medium text-primary mb-4">
         {getGreeting()}, {myName} 👋
       </p>
 
@@ -184,7 +185,7 @@ export default function HomePage() {
             className="w-full text-left bg-shared-gold/15 border border-shared-gold/30 rounded-xl px-4 py-3 mb-4 flex items-center gap-2"
           >
             <span className="text-lg">🎉</span>
-            <span className="text-sm font-sans font-medium text-ink">
+            <span className="text-sm font-sans font-medium text-primary">
               {space?.partnerB?.realName} joined — give them a nickname
             </span>
           </motion.button>
@@ -211,26 +212,32 @@ export default function HomePage() {
         )}
       </AnimatePresence>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        <div className="bg-white rounded-xl border border-border p-4">
-          <p className="font-mono text-2xl font-medium text-ink">
-            {formatCurrency(totalSpent)}
-          </p>
-          <p className="text-xs text-ink/50 font-sans mt-0.5">spent this week</p>
-          <div className="w-full h-0.5 bg-partner-a/20 mt-3 rounded-full">
-            <div className="h-0.5 bg-partner-a rounded-full" style={{ width: "60%" }} />
+      {/* Summary Stat Chips */}
+      <div className="flex gap-3 mb-6">
+        <div className="flex-1 aspect-[4/5] bg-surface rounded-[24px] p-4 flex flex-col justify-between border-t border-white/5">
+          <div className="w-8 h-8 rounded-full bg-background flex items-center justify-center text-partner-a">
+            <Wallet className="w-4 h-4" />
+          </div>
+          <div>
+            <p className="font-mono text-xl font-semibold text-partner-a">
+              {formatCurrency(totalSpent)}
+            </p>
+            <p className="text-xs text-muted font-sans mt-1">spent this week</p>
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-border p-4">
-          <p className="font-mono text-2xl font-medium text-ink">
-            {myHours.toFixed(1)}<span className="text-base font-sans text-ink/50 ml-1">hrs</span>
-          </p>
-          <p className="text-xs text-ink/50 font-sans mt-0.5">your hours</p>
-          <div className="w-full h-0.5 bg-partner-b/20 mt-3 rounded-full">
-            <div className="h-0.5 bg-partner-b rounded-full" style={{ width: `${Math.min(100, (myHours / 40) * 100)}%` }} />
+        <div className="flex-1 aspect-[4/5] bg-surface rounded-[24px] p-4 flex flex-col justify-between border-t border-white/5">
+          <div className="w-8 h-8 rounded-full bg-background flex items-center justify-center text-partner-b">
+            <Clock className="w-4 h-4" />
+          </div>
+          <div>
+            <p className="font-mono text-xl font-semibold text-partner-b">
+              {myHours.toFixed(1)}<span className="text-sm font-sans text-muted ml-1">hrs</span>
+            </p>
+            <p className="text-xs text-muted font-sans mt-1">your hours</p>
           </div>
         </div>
+        {/* Third empty slot for proportion consistency */}
+        <div className="flex-1 aspect-[4/5]" />
       </div>
 
       {/* Free evening callout */}
@@ -243,33 +250,36 @@ export default function HomePage() {
           <p className="text-sm font-sans font-semibold text-partner-a mb-0.5">
             Free Evening ✨
           </p>
-          <p className="text-sm font-sans text-ink/70">
+          <p className="text-sm font-sans text-muted">
             {format(new Date(nextFreeEvening + "T00:00:00"), "EEEE")} looks free — plan something?
           </p>
         </motion.div>
       )}
 
       {/* Quick-add grid */}
-      <div className="grid grid-cols-2 gap-3 mb-6">
+      <div className="grid grid-cols-4 gap-2 mb-6">
         <QuickAddButton
           label="Expense"
-          color="bg-partner-a"
+          color="text-partner-a"
+          icon={Wallet}
           onClick={() => setShowExpense(true)}
         />
         <QuickAddButton
           label="Hours"
-          color="bg-partner-b"
+          color="text-partner-b"
+          icon={Clock}
           onClick={() => setShowHours(true)}
         />
         <QuickAddButton
           label="Nudge"
-          color="bg-shared-gold"
+          color="text-shared-gold"
+          icon={Bell}
           onClick={() => setShowNudge(true)}
         />
         <QuickAddButton
-          label="Little Win"
-          color="bg-muted"
-          textColor="text-ink/70"
+          label="Win"
+          color="text-primary"
+          icon={Star}
           onClick={() => setShowLittleWin(true)}
         />
       </div>
@@ -277,30 +287,22 @@ export default function HomePage() {
       {/* Goals preview */}
       {topGoals.length > 0 && (
         <div>
-          <h2 className="font-display text-2xl font-light text-ink mb-3">Goals</h2>
+          <h2 className="font-display text-2xl font-light text-primary mb-3">Goals</h2>
           <div className="space-y-3">
             {topGoals.map((goal) => {
               const progress = goal.target > 0 ? goal.current / goal.target : 0;
               const hasMystery = goal.gifts?.some((g) => !g.revealed);
               return (
-                <div key={goal.id} className="bg-white rounded-xl border border-border p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-sans font-semibold text-ink">{goal.name}</h3>
+                <div key={goal.id} className="bg-surface rounded-2xl p-4 flex flex-col gap-3 border-t border-white/5">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-sans font-medium text-primary">{goal.name}</h3>
                     {hasMystery && (
-                      <span className="text-xs bg-shared-gold/15 text-shared-gold border border-shared-gold/30 rounded-full px-2 py-0.5 font-sans font-medium">
-                        🎁 mystery gift waiting
+                      <span className="text-[10px] uppercase tracking-wider bg-shared-gold/15 text-shared-gold rounded-full px-2 py-1 font-sans font-bold">
+                        Gift Waiting
                       </span>
                     )}
                   </div>
-                  <BraidProgressBar progress={progress} height={10} className="mb-2" />
-                  <div className="flex items-center justify-between">
-                    <p className="font-mono text-xs text-ink/50">
-                      {formatCurrency(goal.current)} / {formatCurrency(goal.target)}
-                    </p>
-                    <p className="font-mono text-xs text-ink/50">
-                      {Math.round(progress * 100)}%
-                    </p>
-                  </div>
+                  <BraidProgressBar progress={progress} height={16} showLabel={true} />
                 </div>
               );
             })}
@@ -335,26 +337,24 @@ export default function HomePage() {
 
 function QuickAddButton({
   label,
+  icon: Icon,
   color,
-  textColor = "text-white",
   onClick,
 }: {
   label: string;
+  icon: any;
   color: string;
-  textColor?: string;
   onClick: () => void;
 }) {
   return (
     <button
       onClick={onClick}
-      className={cn(
-        "rounded-xl py-4 font-sans font-medium text-sm flex items-center justify-center gap-1.5 transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-partner-a",
-        color,
-        textColor
-      )}
+      className="bg-surface rounded-[20px] aspect-square flex flex-col items-center justify-center gap-2 border-t border-white/5 transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-partner-a"
     >
-      <span className="text-lg leading-none">＋</span>
-      {label}
+      <div className={cn("w-10 h-10 rounded-full bg-background flex items-center justify-center", color)}>
+        <Icon className="w-5 h-5" />
+      </div>
+      <span className="text-[11px] font-sans font-medium text-muted uppercase tracking-wide">{label}</span>
     </button>
   );
 }
@@ -383,22 +383,23 @@ function ReminderBanner({
   };
 
   return (
-    <div className="bg-white border border-border rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+    <div className="bg-surface rounded-xl px-4 py-3 flex items-center justify-between gap-3 border-t border-white/5">
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-sans font-medium text-ink truncate">
-          📌 {reminder.text}
+        <p className="text-sm font-sans font-medium text-primary truncate">
+          {reminder.text}
         </p>
-        <p className="text-xs text-ink/50 font-sans mt-0.5">
+        <p className="text-[11px] text-muted font-sans uppercase tracking-wide mt-1">
           from {fromName}
-          {reminder.dueDate && ` · due ${format(new Date(reminder.dueDate + "T00:00:00"), "MMM d")}`}
+          {reminder.dueDate && ` · ${format(new Date(reminder.dueDate + "T00:00:00"), "MMM d")}`}
         </p>
       </div>
       <button
         onClick={markDone}
         disabled={marking}
-        className="flex-shrink-0 text-xs font-sans font-medium text-partner-a border border-partner-a/30 rounded-lg px-3 py-1.5 hover:bg-partner-a/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-partner-a"
+        className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-partner-a/10 text-partner-a hover:bg-partner-a/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-partner-a"
+        aria-label="Mark done"
       >
-        {marking ? "…" : "Done ✓"}
+        {marking ? <span className="animate-spin">…</span> : "✓"}
       </button>
     </div>
   );

@@ -51,11 +51,11 @@ export default function AddTransactionModal({ onClose, spaceId }: AddTransaction
       <div className="space-y-4">
         {/* Amount */}
         <div>
-          <label className="block text-sm font-sans font-medium text-ink/70 mb-1.5">
+          <label className="block text-sm font-sans font-medium text-muted mb-1.5">
             Amount
           </label>
           <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-ink/40 font-mono">£</span>
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted font-mono">£</span>
             <input
               type="number"
               inputMode="decimal"
@@ -63,7 +63,7 @@ export default function AddTransactionModal({ onClose, spaceId }: AddTransaction
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0.00"
               autoFocus
-              className="w-full pl-8 pr-4 py-3 bg-white border border-border rounded-xl font-mono text-ink text-lg focus:outline-none focus:ring-2 focus:ring-partner-a"
+              className="w-full pl-8 pr-4 py-3 bg-surface border-none rounded-xl font-mono text-primary text-lg focus:outline-none focus:ring-2 focus:ring-partner-a"
             />
           </div>
         </div>
@@ -79,7 +79,7 @@ export default function AddTransactionModal({ onClose, spaceId }: AddTransaction
                   ? t === "expense"
                     ? "bg-alert/10 text-alert border border-alert/30"
                     : "bg-partner-a/10 text-partner-a border border-partner-a/30"
-                  : "bg-white border border-border text-ink/50"
+                  : "bg-surface border-none text-muted"
               }`}
             >
               {t.charAt(0).toUpperCase() + t.slice(1)}
@@ -89,13 +89,13 @@ export default function AddTransactionModal({ onClose, spaceId }: AddTransaction
 
         {/* Category */}
         <div>
-          <label className="block text-sm font-sans font-medium text-ink/70 mb-1.5">
+          <label className="block text-sm font-sans font-medium text-muted mb-1.5">
             Category
           </label>
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="w-full bg-white border border-border rounded-xl px-4 py-3 text-ink font-sans focus:outline-none focus:ring-2 focus:ring-partner-a"
+            className="w-full bg-surface border-none rounded-xl px-4 py-3 text-primary font-sans focus:outline-none focus:ring-2 focus:ring-partner-a"
           >
             {DEFAULT_CATEGORIES.map((c) => (
               <option key={c} value={c}>{c}</option>
@@ -105,7 +105,7 @@ export default function AddTransactionModal({ onClose, spaceId }: AddTransaction
 
         {/* Payer */}
         <div>
-          <label className="block text-sm font-sans font-medium text-ink/70 mb-1.5">
+          <label className="block text-sm font-sans font-medium text-muted mb-1.5">
             Paid by
           </label>
           <div className="grid grid-cols-3 gap-2">
@@ -116,11 +116,11 @@ export default function AddTransactionModal({ onClose, spaceId }: AddTransaction
                 className={`py-2.5 rounded-xl text-sm font-sans font-medium transition-colors ${
                   payer === p
                     ? p === "a"
-                      ? "bg-partner-a text-white"
+                      ? "bg-partner-a text-background"
                       : p === "b"
-                      ? "bg-partner-b text-white"
-                      : "bg-shared-gold text-white"
-                    : "bg-white border border-border text-ink/50"
+                      ? "bg-partner-b text-background"
+                      : "bg-shared-gold text-background"
+                    : "bg-surface border-none text-muted"
                 }`}
               >
                 {p === "shared" ? "Shared" : p === "a" ? "Partner A" : "Partner B"}
@@ -131,38 +131,38 @@ export default function AddTransactionModal({ onClose, spaceId }: AddTransaction
 
         {/* Note */}
         <div>
-          <label className="block text-sm font-sans font-medium text-ink/70 mb-1.5">
-            Note <span className="text-ink/30">(optional)</span>
+          <label className="block text-sm font-sans font-medium text-muted mb-1.5">
+            Note <span className="text-muted">(optional)</span>
           </label>
           <input
             type="text"
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="e.g. Tesco run"
-            className="w-full bg-white border border-border rounded-xl px-4 py-3 text-ink font-sans focus:outline-none focus:ring-2 focus:ring-partner-a"
+            className="w-full bg-surface border-none rounded-xl px-4 py-3 text-primary font-sans focus:outline-none focus:ring-2 focus:ring-partner-a"
           />
         </div>
 
         {/* Date */}
         <div>
-          <label className="block text-sm font-sans font-medium text-ink/70 mb-1.5">Date</label>
+          <label className="block text-sm font-sans font-medium text-muted mb-1.5">Date</label>
           <input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="w-full bg-white border border-border rounded-xl px-4 py-3 text-ink font-sans focus:outline-none focus:ring-2 focus:ring-partner-a"
+            className="w-full bg-surface border-none rounded-xl px-4 py-3 text-primary font-sans focus:outline-none focus:ring-2 focus:ring-partner-a"
           />
         </div>
 
         {/* Recurring */}
         <div>
-          <label className="block text-sm font-sans font-medium text-ink/70 mb-1.5">
+          <label className="block text-sm font-sans font-medium text-muted mb-1.5">
             Recurring
           </label>
           <select
             value={recurring}
             onChange={(e) => setRecurring(e.target.value as "" | "monthly" | "weekly")}
-            className="w-full bg-white border border-border rounded-xl px-4 py-3 text-ink font-sans focus:outline-none focus:ring-2 focus:ring-partner-a"
+            className="w-full bg-surface border-none rounded-xl px-4 py-3 text-primary font-sans focus:outline-none focus:ring-2 focus:ring-partner-a"
           >
             <option value="">One-time</option>
             <option value="monthly">Monthly</option>
@@ -173,7 +173,7 @@ export default function AddTransactionModal({ onClose, spaceId }: AddTransaction
         <button
           onClick={handleSave}
           disabled={!amount || saving}
-          className="w-full py-3.5 bg-partner-a text-white font-sans font-medium rounded-xl hover:bg-partner-a/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-partner-a"
+          className="w-full py-3.5 bg-partner-a text-background font-sans font-medium rounded-xl hover:bg-partner-a/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-partner-a"
         >
           {saving ? "Saving…" : "Save transaction"}
         </button>

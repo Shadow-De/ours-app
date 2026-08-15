@@ -108,64 +108,64 @@ export default function MorePage() {
     <div className="px-4 pt-6 pb-8">
       {/* Header */}
       <header className="mb-1">
-        <h1 className="font-display text-4xl font-light text-ink">More</h1>
+        <h1 className="font-display text-4xl font-light text-primary">More</h1>
       </header>
       <BraidDivider className="mb-5" />
 
       {/* Little Wins / Compliments */}
-      <div className="mb-6">
-        <h2 className="font-display text-2xl font-light text-ink mb-3">Little Wins</h2>
-        <div className="space-y-3 mb-3">
+      <div className="mb-8">
+        <h2 className="font-display text-2xl font-light text-primary mb-4">Little Wins</h2>
+        <div className="space-y-2 mb-4">
           {compliments.slice(0, 5).map((c) => (
             <div
               key={c.id}
-              className="bg-white border border-border rounded-xl px-4 py-3"
+              className="bg-surface border-t border-white/5 rounded-2xl px-5 py-4"
             >
-              <p className="text-sm font-sans text-ink">💛 {c.text}</p>
-              <p className="text-xs text-ink/40 font-sans mt-1.5">
+              <p className="text-[15px] font-sans font-medium text-primary mb-2">💛 {c.text}</p>
+              <p className="text-[11px] uppercase tracking-wide text-muted font-sans">
                 from {displayName(c.from)} ·{" "}
                 {format(new Date(c.date), "MMM d")}
               </p>
             </div>
           ))}
           {compliments.length === 0 && (
-            <p className="text-sm text-ink/40 font-sans text-center py-3">
+            <p className="text-sm text-muted font-sans text-center py-4">
               Leave each other little wins to celebrate small moments.
             </p>
           )}
         </div>
         <button
           onClick={() => setShowAddCompliment(true)}
-          className="w-full py-2.5 rounded-xl border border-shared-gold/40 text-shared-gold text-sm font-sans font-medium hover:bg-shared-gold/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-shared-gold"
+          className="w-full py-4 rounded-full border-2 border-dashed border-shared-gold/30 text-shared-gold text-sm font-sans font-medium hover:bg-shared-gold/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-shared-gold"
         >
           + Leave a little win
         </button>
       </div>
 
       {/* Weekly Check-In */}
-      <div className="mb-6">
-        <h2 className="font-display text-2xl font-light text-ink mb-3">Weekly Check-In</h2>
-        <div className="bg-white border border-border rounded-xl p-4">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-sans font-medium text-ink">
+      <div className="mb-8">
+        <h2 className="font-display text-2xl font-light text-primary mb-4">Weekly Check-In</h2>
+        <div className="bg-surface border-t border-white/5 rounded-[24px] p-5">
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-[13px] font-sans font-medium text-primary">
               Week of {format(new Date(thisWeekOf + "T00:00:00"), "MMM d")}
             </p>
-            <div className="flex items-center gap-1.5 bg-shared-gold/10 rounded-full px-3 py-1">
+            <div className="flex items-center gap-1.5 bg-shared-gold/15 rounded-full px-3 py-1">
               <Flame className="w-3.5 h-3.5 text-shared-gold" />
-              <span className="text-xs font-sans font-medium text-shared-gold">
+              <span className="text-[10px] uppercase tracking-wider font-sans font-bold text-shared-gold">
                 {streak} week streak
               </span>
             </div>
           </div>
           {thisWeekCheckin ? (
             <div>
-              <p className="text-xs text-ink/50 font-sans mb-1">This week&apos;s note:</p>
-              <p className="text-sm font-sans text-ink">{thisWeekCheckin.note}</p>
+              <p className="text-[11px] uppercase tracking-wide text-muted font-sans mb-2">This week&apos;s note:</p>
+              <p className="text-sm font-sans text-primary">{thisWeekCheckin.note}</p>
             </div>
           ) : (
             <button
               onClick={() => setShowCheckin(true)}
-              className="w-full py-2.5 rounded-lg bg-partner-a text-white text-sm font-sans font-medium hover:bg-partner-a/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-partner-a"
+              className="w-full py-3 rounded-full bg-partner-a text-background text-sm font-sans font-medium hover:bg-partner-a/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-partner-a"
             >
               Write this week&apos;s check-in
             </button>
@@ -174,51 +174,51 @@ export default function MorePage() {
 
         {/* Past check-ins */}
         {checkins.length > 1 && (
-          <div className="mt-3 space-y-2">
-            <p className="text-xs text-ink/50 font-sans uppercase tracking-wide font-medium">
+          <div className="mt-4 space-y-2">
+            <p className="text-[10px] text-muted font-sans uppercase tracking-wider font-bold mb-2 ml-1">
               Past check-ins
             </p>
             {checkins.slice(1, 5).map((c) => (
-              <div key={c.id} className="bg-white border border-border rounded-xl px-4 py-3">
-                <p className="text-xs text-ink/50 font-sans">
+              <div key={c.id} className="bg-surface border-t border-white/5 rounded-2xl px-5 py-4">
+                <p className="text-[11px] uppercase tracking-wide text-muted font-sans mb-2">
                   Week of {format(new Date(c.weekOf + "T00:00:00"), "MMM d")} ·{" "}
                   {displayName(c.submittedBy)}
                 </p>
-                <p className="text-sm font-sans text-ink mt-1 line-clamp-2">{c.note}</p>
+                <p className="text-[15px] font-sans text-primary line-clamp-2">{c.note}</p>
               </div>
             ))}
           </div>
         )}
       </div>
 
-      <div className="border-t border-border my-6" />
+      <div className="border-t border-white/5 my-8" />
 
       {/* Names & Nicknames */}
-      <div className="mb-6">
-        <h2 className="font-sans text-base font-semibold text-ink mb-3">Names & Nicknames</h2>
-        <div className="bg-white border border-border rounded-xl divide-y divide-border">
+      <div className="mb-8">
+        <h2 className="font-sans text-[13px] uppercase tracking-wider font-bold text-muted mb-3 ml-1">Names & Nicknames</h2>
+        <div className="bg-surface rounded-2xl divide-y divide-white/5 border-t border-white/5">
           {(["a", "b"] as const).map((r) => {
             const realName = r === "a" ? space?.partnerA?.realName : space?.partnerB?.realName;
             const nick = r === "a" ? space?.nicknames?.forA : space?.nicknames?.forB;
             const dotColor = r === "a" ? "bg-partner-a" : "bg-partner-b";
             return (
-              <div key={r} className="flex items-center gap-3 px-4 py-3">
-                <div className={cn("w-2 h-2 rounded-full flex-shrink-0", dotColor)} />
+              <div key={r} className="flex items-center gap-4 px-5 py-4">
+                <div className={cn("w-3 h-3 rounded-full flex-shrink-0", dotColor)} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-sans text-ink font-medium truncate">
+                  <p className="text-[15px] font-sans text-primary font-medium truncate">
                     {realName ?? `Partner ${r.toUpperCase()}`}
                   </p>
                   {nick && (
-                    <p className="text-xs text-ink/50 font-sans">
+                    <p className="text-[11px] uppercase tracking-wide text-muted font-sans mt-1">
                       nickname: {nick}
                     </p>
                   )}
                 </div>
                 <button
                   onClick={() => setShowNicknameFor(r)}
-                  className="text-xs text-partner-a font-sans font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-partner-a rounded"
+                  className="text-[11px] uppercase tracking-wide text-partner-a font-sans font-bold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-partner-a rounded"
                 >
-                  {nick ? "rename" : "set nickname"}
+                  {nick ? "Rename" : "Set Nickname"}
                 </button>
               </div>
             );
@@ -227,9 +227,9 @@ export default function MorePage() {
       </div>
 
       {/* Google Calendar */}
-      <div className="mb-6">
-        <h2 className="font-sans text-base font-semibold text-ink mb-3">Google Calendar</h2>
-        <div className="bg-white border border-border rounded-xl divide-y divide-border">
+      <div className="mb-8">
+        <h2 className="font-sans text-[13px] uppercase tracking-wider font-bold text-muted mb-3 ml-1">Google Calendar</h2>
+        <div className="bg-surface rounded-2xl divide-y divide-white/5 border-t border-white/5">
           {(["a", "b"] as const).map((r) => {
             const isMe = r === role;
             const isConnected = r === "a" ? calendarStatus.a : calendarStatus.b;
@@ -237,26 +237,26 @@ export default function MorePage() {
             const dotColor = r === "a" ? "text-partner-a" : "text-partner-b";
 
             return (
-              <div key={r} className="flex items-center gap-3 px-4 py-3">
+              <div key={r} className="flex items-center gap-4 px-5 py-4">
                 <div className="flex-1 min-w-0">
-                  <p className={cn("text-sm font-sans font-medium", dotColor)}>
+                  <p className={cn("text-[15px] font-sans font-medium", dotColor)}>
                     {realName ?? `Partner ${r.toUpperCase()}`}
                   </p>
-                  <p className="text-xs text-ink/50 font-sans mt-0.5">
+                  <p className="text-[11px] uppercase tracking-wide text-muted font-sans mt-1">
                     {isConnected ? "✅ Connected" : "⚪ Not connected"}
                   </p>
                 </div>
                 {isMe && !isConnected && (
                   <button
                     onClick={connectCalendar}
-                    className="text-xs font-sans text-partner-a font-medium border border-partner-a/30 rounded-lg px-3 py-1.5 hover:bg-partner-a/5 transition-colors"
+                    className="text-[11px] uppercase tracking-wide font-sans text-partner-a font-bold border border-partner-a/30 rounded-full px-4 py-2 hover:bg-partner-a/10 transition-colors"
                   >
                     Connect
                   </button>
                 )}
                 {isMe && isConnected && (
-                  <button className="text-xs font-sans text-ink/40 hover:text-alert transition-colors">
-                    disconnect
+                  <button className="text-[11px] uppercase tracking-wide font-sans text-muted hover:text-alert transition-colors font-bold">
+                    Disconnect
                   </button>
                 )}
               </div>
@@ -268,10 +268,10 @@ export default function MorePage() {
       {/* Categories & Budgets */}
       <button
         onClick={() => setShowBudgets(true)}
-        className="w-full bg-white border border-border rounded-xl px-4 py-3.5 flex items-center justify-between mb-6 hover:bg-paper transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-partner-a"
+        className="w-full bg-surface border-t border-white/5 rounded-2xl px-5 py-4 flex items-center justify-between mb-8 hover:bg-surface-raised transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-partner-a"
       >
-        <span className="text-sm font-sans font-medium text-ink">Categories & Budgets</span>
-        <ChevronRight className="w-4 h-4 text-ink/40" />
+        <span className="text-[15px] font-sans font-medium text-primary">Categories & Budgets</span>
+        <ChevronRight className="w-5 h-5 text-muted" />
       </button>
 
       {/* Sign Out */}
