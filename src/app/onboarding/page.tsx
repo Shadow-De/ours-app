@@ -22,15 +22,31 @@ export default function OnboardingPage() {
     setError("");
     const result = await signInWithGoogle();
     if (result?.user) {
-      // Check if user already has a space
-      const { getDoc, doc: firestoreDoc } = await import("firebase/firestore");
-      const userSnap = await getDoc(firestoreDoc(db, "users", result.user.uid));
-      if (userSnap.exists()) {
-        // Already paired — redirect to home
-        router.push("/");
-        return;
+      try {
+        // Check if user already has a space (with timeout to prevent hanging)
+        const { getDoc, doc: firestoreDoc } = await import("firebase/firestore");
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("firestore_timeout")), 6000)
+        );
+        const userSnap = await Promise.race([
+          getDoc(firestoreDoc(db, "users", result.user.uid)),
+          timeoutPromise,
+        ]);
+        if (userSnap.exists()) {
+          // Already paired — redirect to home
+          router.push("/");
+          return;
+        }
+        setStep("name");
+      } catch (err: any) {
+        console.error("Firestore error during sign-in:", err);
+        // On timeout or offline — assume new user and proceed to name step
+        if (err.message === "firestore_timeout" || err.code === "unavailable") {
+          setStep("name");
+        } else {
+          setError("Could not connect to database. Please check your connection.");
+        }
       }
-      setStep("name");
     } else {
       setError("Sign-in failed. Please try again.");
     }
@@ -43,50 +59,40 @@ export default function OnboardingPage() {
     setError("");
 
     try {
-      const spaceId = crypto.randomUUID();
-
-      // Create the space document
-      await setDoc(doc(db, "spaces", spaceId), {
-        status: "awaiting_partner",
-        partnerA: {
-          uid: user.uid,
-          realName: name.trim(),
-          colorHex: "#2F6E62",
+      // Use server-side API route (Admin SDK) — bypasses browser Firestore WebChannel
+      const idToken = await user.getIdToken();
+      const res = await fetch("/api/onboarding/create-space", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
         },
-        partnerB: null,
-        nicknames: { forA: "", forB: "" },
-        createdAt: new Date().toISOString(),
+        body: JSON.stringify({ name: name.trim() }),
       });
 
-      // Create the user document
-      await setDoc(doc(db, "users", user.uid), {
-        spaceId,
-        role: "a",
-        googleCalendarConnected: false,
-        createdAt: new Date().toISOString(),
-      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to create space");
+      }
 
-      // Store the access token server-side for Calendar sync
-      if (user) {
-        try {
-          const token = await user.getIdToken();
-          await fetch("/api/auth/token", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ uid: user.uid }),
-          });
-        } catch {
-          // Non-fatal — calendar sync can be set up later from Settings
-        }
+      // Also call token endpoint to set up calendar (non-fatal)
+      try {
+        await fetch("/api/auth/token", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${idToken}`,
+          },
+          body: JSON.stringify({ uid: user.uid }),
+        });
+      } catch {
+        // Non-fatal — calendar sync can be set up later
       }
 
       router.push("/waiting");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError("Something went wrong. Please try again.");
+      setError(err.message || "Something went wrong. Please try again.");
     }
     setLoading(false);
   };

@@ -25,7 +25,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (!loading) {
       if (!user) {
         router.push("/onboarding");
-      } else if (userDoc && !userDoc.spaceId) {
+      } else if (!userDoc || !userDoc.spaceId) {
         router.push("/onboarding");
       } else if (space?.status === "awaiting_partner") {
         router.push("/waiting");

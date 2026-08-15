@@ -54,20 +54,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Fetch user document
-      const userDocRef = doc(db, "users", firebaseUser.uid);
-      const userSnap = await getDoc(userDocRef);
+      // Fetch user document with a timeout — prevents infinite spinner
+      // when Firestore connection is stuck (e.g. cold start, network issue)
+      try {
+        const userDocRef = doc(db, "users", firebaseUser.uid);
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("firestore_timeout")), 6000)
+        );
+        const userSnap = await Promise.race([getDoc(userDocRef), timeoutPromise]);
 
-      if (!userSnap.exists()) {
-        setUserDoc(null);
-        setSpace(null);
+        if (!userSnap.exists()) {
+          setUserDoc(null);
+          setSpace(null);
+          setLoading(false);
+          return;
+        }
+
+        const ud = userSnap.data() as UserDoc;
+        setUserDoc(ud);
+      } catch (err: any) {
+        if (err.message === "firestore_timeout") {
+          // Firestore WebChannel offline — fall back to server-side API
+          try {
+            const idToken = await firebaseUser.getIdToken();
+            const res = await fetch("/api/user/me", {
+              headers: { Authorization: `Bearer ${idToken}` },
+            });
+            if (res.ok) {
+              const data = await res.json();
+              if (data.exists) {
+                setUserDoc(data.data as UserDoc);
+              } else {
+                setUserDoc(null);
+                setSpace(null);
+              }
+            } else {
+              setUserDoc(null);
+              setSpace(null);
+            }
+          } catch {
+            setUserDoc(null);
+            setSpace(null);
+          }
+        } else {
+          console.error("Error fetching user document in auth state change:", err);
+          setUserDoc(null);
+          setSpace(null);
+        }
+      } finally {
         setLoading(false);
-        return;
       }
-
-      const ud = userSnap.data() as UserDoc;
-      setUserDoc(ud);
-      setLoading(false);
     });
 
     return unsub;
