@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     const uid = decodedToken.user_id;
 
     const body = await request.json();
-    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "ours-ef861";
 
     // If a refresh token is provided (from a client-side OAuth flow), store it
     if (body.refreshToken) {

@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     }
     const uid = decodedToken.user_id;
 
-    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "ours-ef861";
     const getUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users/${uid}`;
 
     const res = await fetch(getUrl, {

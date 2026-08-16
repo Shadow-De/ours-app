@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     const spaceId = crypto.randomUUID();
-    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "ours-ef861";
 
     // Use Firestore REST API batch commit
     const commitUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:commit`;
