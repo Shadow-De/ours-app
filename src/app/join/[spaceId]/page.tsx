@@ -58,7 +58,8 @@ export default function JoinPage({ params }: JoinPageProps) {
   const handleSignIn = async () => {
     setLoading(true);
     setError("");
-    await signInWithGoogle();
+    // Pass the current join URL so OAuth returns here after sign-in
+    await signInWithGoogle(`/join/${spaceId}`);
   };
 
   const handleJoin = async () => {

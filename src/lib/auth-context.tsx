@@ -18,7 +18,7 @@ interface AuthContextValue {
   role: Role | null;
   spaceId: string | null;
   loading: boolean;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: (redirectAfter?: string) => Promise<void>;
   signOut: () => Promise<void>;
   // Display name helper — nickname if set, else real name
   displayName: (role: Role) => string;
@@ -180,8 +180,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [supabase, userDoc?.spaceId]);
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (redirectAfter?: string) => {
     try {
+      // Encode where to go after auth — join pages pass their spaceId URL here
+      const nextParam = redirectAfter ? `?next=${encodeURIComponent(redirectAfter)}` : '';
       await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
@@ -190,7 +192,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             access_type: "offline",
             prompt: "consent",
           },
-          redirectTo: `${window.location.origin}/api/auth/callback`,
+          redirectTo: `${window.location.origin}/api/auth/callback${nextParam}`,
         },
       });
     } catch (err) {

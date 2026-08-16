@@ -14,11 +14,30 @@ export default function WaitingPage() {
   const router = useRouter();
   const [copied, setCopied] = useState(false);
   const [space, setSpace] = useState<Space | null>(null);
+  const [spaceId, setSpaceId] = useState<string | null>(null);
   const supabase = createClient();
 
+  // Resolve spaceId ASAP — either from auth context or direct DB lookup
+  useEffect(() => {
+    if (userDoc?.spaceId) {
+      setSpaceId(userDoc.spaceId);
+      return;
+    }
+    if (!user) return;
+    // Direct DB lookup as fallback when auth context is still loading
+    supabase
+      .from('users')
+      .select('space_id')
+      .eq('id', user.id)
+      .single()
+      .then(({ data }) => {
+        if (data?.space_id) setSpaceId(data.space_id);
+      });
+  }, [user, userDoc?.spaceId]);
+
   const inviteUrl =
-    typeof window !== "undefined" && userDoc?.spaceId
-      ? `${window.location.origin}/join/${userDoc.spaceId}`
+    typeof window !== "undefined" && spaceId
+      ? `${window.location.origin}/join/${spaceId}`
       : "";
 
   // Check space status and redirect if active
@@ -41,21 +60,21 @@ export default function WaitingPage() {
 
   // Real-time listener + polling fallback
   useEffect(() => {
-    if (!userDoc?.spaceId) return;
-    const spaceId = userDoc.spaceId;
+    if (!spaceId) return;
+    const sid = spaceId;
 
     // 1. Immediate check on mount
-    checkAndRedirect(spaceId);
+    checkAndRedirect(sid);
 
     // 2. Polling fallback every 3 seconds (in case realtime misses it)
-    const pollInterval = setInterval(() => checkAndRedirect(spaceId), 3000);
+    const pollInterval = setInterval(() => checkAndRedirect(sid), 3000);
 
     // 3. Real-time subscription
     const channel = supabase
-      .channel(`waiting-space-${spaceId}`)
+      .channel(`waiting-space-${sid}`)
       .on(
         'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'spaces', filter: `id=eq.${spaceId}` },
+        { event: 'UPDATE', schema: 'public', table: 'spaces', filter: `id=eq.${sid}` },
         (payload) => {
           const updatedSpace = payload.new as any;
           setSpace(updatedSpace);
@@ -71,7 +90,7 @@ export default function WaitingPage() {
       clearInterval(pollInterval);
       supabase.removeChannel(channel);
     };
-  }, [userDoc?.spaceId, router]);
+  }, [spaceId, router]);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(inviteUrl);
