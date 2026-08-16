@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createDecipheriv } from "crypto";
 import { google } from "googleapis";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, getAuthenticatedUser } from "@/lib/supabase/server";
 
 /**
  * Decrypt a token stored with AES-256-GCM.
@@ -23,8 +23,8 @@ function decrypt(ciphertext: string): string {
  * This enforces per-owner calendar isolation.
  */
 async function getCalendarClientForUser(uid: string) {
-  const supabase = await createClient();
-  const { data: userData } = await supabase.from('users').select('*').eq('id', uid).single();
+  const admin = createAdminClient();
+  const { data: userData } = await admin.from('users').select('*').eq('id', uid).single();
 
   if (!userData?.google_calendar_connected || !userData?.encrypted_refresh_token) {
     return null;
@@ -54,6 +54,11 @@ async function getCalendarClientForUser(uid: string) {
  */
 export async function POST(request: NextRequest) {
   try {
+    const user = await getAuthenticatedUser(request);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const { type, docId, spaceId, assignedToRole } = body;
 
@@ -61,10 +66,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const supabase = await createClient();
+    const admin = createAdminClient();
 
     // Resolve assignee's UID from the space document
-    const { data: spaceData } = await supabase.from('spaces').select('*').eq('id', spaceId).single();
+    const { data: spaceData } = await admin.from('spaces').select('*').eq('id', spaceId).single();
     if (!spaceData) {
       return NextResponse.json({ error: "Space not found" }, { status: 404 });
     }
@@ -100,7 +105,7 @@ export async function POST(request: NextRequest) {
 
     // Fetch the document to get event details
     const tableName = type === "shift" ? "shifts" : "reminders";
-    const { data } = await supabase.from(tableName).select('*').eq('id', docId).single();
+    const { data } = await admin.from(tableName).select('*').eq('id', docId).single();
     if (!data) {
       return NextResponse.json({ error: "Document not found" }, { status: 404 });
     }
@@ -164,7 +169,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Store the event ID back on the Supabase document
-    await supabase.from(tableName).update({ google_event_id: googleEventId }).eq('id', docId);
+    await admin.from(tableName).update({ google_event_id: googleEventId }).eq('id', docId);
 
     return NextResponse.json({ success: true, googleEventId });
   } catch (error) {

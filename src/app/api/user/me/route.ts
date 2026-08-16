@@ -1,20 +1,20 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { NextRequest, NextResponse } from "next/server";
+import { createAdminClient, getAuthenticatedUser } from "@/lib/supabase/server";
 
 /**
  * GET /api/user/me
  * Retrieves the current user's document from Supabase
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const user = await getAuthenticatedUser(request);
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data, error } = await supabase
+    const admin = createAdminClient();
+    const { data, error } = await admin
       .from("users")
       .select("space_id, role, google_calendar_connected")
       .eq("id", user.id)

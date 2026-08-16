@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { createAdminClient, getAuthenticatedUser } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify the user is authenticated using their session cookie
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const user = await getAuthenticatedUser(request);
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -16,7 +14,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid data" }, { status: 400 });
     }
 
-    // Use the admin client for writes to bypass RLS
     const admin = createAdminClient();
 
     // 1. Verify the space exists and is awaiting a partner
@@ -67,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     if (userError) {
       console.error("Supabase upsert user error:", userError);
-      return NextResponse.json({ error: "Failed to create user record" }, { status: 500 });
+      return NextResponse.json({ error: "Failed to create user record: " + (userError.message || userError.details || "") }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, spaceId });

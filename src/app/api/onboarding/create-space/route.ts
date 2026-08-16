@@ -1,20 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { createAdminClient, getAuthenticatedUser } from "@/lib/supabase/server";
 
 /**
  * POST /api/onboarding/create-space
  * Creates the space and user documents in Supabase PostgreSQL.
- * Uses the service role admin client to bypass RLS for initial user record creation.
+ * Uses service role client to bypass RLS for initial user record creation.
  *
  * Body: { name: string }
  */
 export async function POST(request: NextRequest) {
   try {
-    // Verify the user is authenticated using their session cookie
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const user = await getAuthenticatedUser(request);
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -23,7 +21,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
-    // Use the admin client for writes to bypass RLS
     const admin = createAdminClient();
 
     // 1. Create the space
@@ -61,7 +58,7 @@ export async function POST(request: NextRequest) {
       console.error("Supabase upsert user error:", userError);
       // Clean up: delete the space since user creation failed
       await admin.from("spaces").delete().eq("id", spaceId);
-      return NextResponse.json({ error: "Failed to create user record" }, { status: 500 });
+      return NextResponse.json({ error: "Failed to create user record: " + (userError.message || userError.details || "") }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, spaceId });

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, getAuthenticatedUser } from "@/lib/supabase/server";
 
 /**
  * AES-256-GCM encryption for refresh tokens.
@@ -33,18 +33,18 @@ export function decrypt(ciphertext: string): string {
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const user = await getAuthenticatedUser(request);
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json();
+    const admin = createAdminClient();
 
     if (body.refreshToken) {
       const encrypted = encrypt(body.refreshToken);
-      const { error } = await supabase
+      const { error } = await admin
         .from("users")
         .update({
           encrypted_refresh_token: encrypted,
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
       }
     } else {
       // Just mark the user as having completed auth setup
-      const { error } = await supabase
+      const { error } = await admin
         .from("users")
         .update({
           google_calendar_connected: false,
