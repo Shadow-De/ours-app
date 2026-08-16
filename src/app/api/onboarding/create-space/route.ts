@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 
 /**
  * POST /api/onboarding/create-space
  * Creates the space and user documents in Supabase PostgreSQL.
+ * Uses the service role admin client to bypass RLS for initial user record creation.
  *
  * Body: { name: string }
  */
 export async function POST(request: NextRequest) {
   try {
+    // Verify the user is authenticated using their session cookie
     const supabase = await createClient();
-
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
@@ -22,9 +23,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
-    // Use a transaction/RPC or sequential inserts if RLS is configured appropriately
+    // Use the admin client for writes to bypass RLS
+    const admin = createAdminClient();
+
     // 1. Create the space
-    const { data: spaceData, error: spaceError } = await supabase
+    const { data: spaceData, error: spaceError } = await admin
       .from("spaces")
       .insert({
         status: "awaiting_partner",
@@ -45,7 +48,7 @@ export async function POST(request: NextRequest) {
     const spaceId = spaceData.id;
 
     // 2. Create or update the user record
-    const { error: userError } = await supabase
+    const { error: userError } = await admin
       .from("users")
       .upsert({
         id: user.id,
@@ -56,7 +59,8 @@ export async function POST(request: NextRequest) {
 
     if (userError) {
       console.error("Supabase upsert user error:", userError);
-      // Rollback space could be needed here, or RPC should be used.
+      // Clean up: delete the space since user creation failed
+      await admin.from("spaces").delete().eq("id", spaceId);
       return NextResponse.json({ error: "Failed to create user record" }, { status: 500 });
     }
 

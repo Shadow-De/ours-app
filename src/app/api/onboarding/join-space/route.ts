@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
   try {
+    // Verify the user is authenticated using their session cookie
     const supabase = await createClient();
-
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
@@ -16,15 +16,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid data" }, { status: 400 });
     }
 
-    // 1. Update space
-    const { error: spaceError } = await supabase
+    // Use the admin client for writes to bypass RLS
+    const admin = createAdminClient();
+
+    // 1. Verify the space exists and is awaiting a partner
+    const { data: spaceData, error: spaceFetchError } = await admin
+      .from("spaces")
+      .select("id, status, partner_a_uid")
+      .eq("id", spaceId)
+      .single();
+
+    if (spaceFetchError || !spaceData) {
+      return NextResponse.json({ error: "Space not found" }, { status: 404 });
+    }
+
+    if (spaceData.status !== "awaiting_partner") {
+      return NextResponse.json({ error: "Space is already full" }, { status: 400 });
+    }
+
+    if (spaceData.partner_a_uid === user.id) {
+      return NextResponse.json({ error: "You cannot join your own space" }, { status: 400 });
+    }
+
+    // 2. Update space to active with partner B info
+    const { error: spaceError } = await admin
       .from("spaces")
       .update({
         status: "active",
         partner_b_uid: user.id,
         partner_b_real_name: realName,
         partner_b_color_hex: "#5B5296",
-        nickname_for_a: nicknameForA,
+        nickname_for_a: nicknameForA || "",
       })
       .eq("id", spaceId);
 
@@ -33,8 +55,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Failed to join space" }, { status: 500 });
     }
 
-    // 2. Create user record
-    const { error: userError } = await supabase
+    // 3. Create user record for partner B
+    const { error: userError } = await admin
       .from("users")
       .upsert({
         id: user.id,
