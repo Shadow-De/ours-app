@@ -83,15 +83,18 @@ export default function JoinPage({ params }: JoinPageProps) {
       });
 
       if (!res.ok) {
-        throw new Error("Failed to join space");
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to join space");
       }
 
-      router.push("/");
-    } catch (err) {
+      // Force a full page reload to home — this ensures the auth context
+      // re-fetches the user record and space data fresh from Supabase
+      window.location.href = "/";
+    } catch (err: any) {
       console.error(err);
-      setError("Something went wrong. Please try again.");
+      setError(err.message || "Something went wrong. Please try again.");
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (

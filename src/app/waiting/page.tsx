@@ -21,38 +21,46 @@ export default function WaitingPage() {
       ? `${window.location.origin}/join/${userDoc.spaceId}`
       : "";
 
-  // Real-time listener — redirect as soon as partner joins
+  // Check space status and redirect if active
+  const checkAndRedirect = async (spaceId: string) => {
+    const { data } = await supabase
+      .from('spaces')
+      .select('*')
+      .eq('id', spaceId)
+      .single();
+    
+    if (data) {
+      setSpace(data as any);
+      if (data.status === 'active') {
+        router.push('/');
+        return true;
+      }
+    }
+    return false;
+  };
+
+  // Real-time listener + polling fallback
   useEffect(() => {
     if (!userDoc?.spaceId) return;
+    const spaceId = userDoc.spaceId;
 
-    // Initial fetch
-    const fetchSpace = async () => {
-      const { data, error } = await supabase
-        .from('spaces')
-        .select('*')
-        .eq('id', userDoc.spaceId)
-        .single();
-      
-      if (data) {
-        setSpace(data as Space);
-        if (data.status === 'active') {
-          router.push('/');
-        }
-      }
-    };
-    fetchSpace();
+    // 1. Immediate check on mount
+    checkAndRedirect(spaceId);
 
-    // Subscribe to changes
+    // 2. Polling fallback every 3 seconds (in case realtime misses it)
+    const pollInterval = setInterval(() => checkAndRedirect(spaceId), 3000);
+
+    // 3. Real-time subscription
     const channel = supabase
-      .channel(`space_status`)
+      .channel(`waiting-space-${spaceId}`)
       .on(
         'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'spaces', filter: `id=eq.${userDoc.spaceId}` },
+        { event: 'UPDATE', schema: 'public', table: 'spaces', filter: `id=eq.${spaceId}` },
         (payload) => {
-          const updatedSpace = payload.new as Space;
+          const updatedSpace = payload.new as any;
           setSpace(updatedSpace);
           if (updatedSpace.status === "active") {
-            // Partner B has joined — go home
+            clearInterval(pollInterval);
             router.push("/");
           }
         }
@@ -60,9 +68,10 @@ export default function WaitingPage() {
       .subscribe();
 
     return () => {
+      clearInterval(pollInterval);
       supabase.removeChannel(channel);
     };
-  }, [userDoc?.spaceId, router, supabase]);
+  }, [userDoc?.spaceId, router]);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(inviteUrl);
