@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient, getAuthenticatedUser } from "@/lib/supabase/server";
+import { createUserClient, createAdminClient, getAuthenticatedUser } from "@/lib/supabase/server";
 
 /**
  * GET /api/user/me
@@ -7,14 +7,16 @@ import { createAdminClient, getAuthenticatedUser } from "@/lib/supabase/server";
  */
 export async function GET(request: NextRequest) {
   try {
-    const user = await getAuthenticatedUser(request);
+    const auth = await getAuthenticatedUser(request);
 
-    if (!user) {
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const admin = createAdminClient();
-    const { data, error } = await admin
+    const { user, accessToken } = auth;
+    const db = accessToken ? createUserClient(accessToken) : createAdminClient();
+
+    const { data, error } = await db
       .from("users")
       .select("space_id, role, google_calendar_connected")
       .eq("id", user.id)

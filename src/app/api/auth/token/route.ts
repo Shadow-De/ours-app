@@ -1,18 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
-import { createAdminClient, getAuthenticatedUser } from "@/lib/supabase/server";
+import { createUserClient, createAdminClient, getAuthenticatedUser } from "@/lib/supabase/server";
 
-/**
- * AES-256-GCM encryption for refresh tokens.
- * Key must be 32 bytes (256 bits), stored in TOKEN_ENCRYPTION_KEY env var.
- */
 function encrypt(plaintext: string): string {
   const key = Buffer.from(process.env.TOKEN_ENCRYPTION_KEY!, "hex");
   const iv = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", key, iv);
   const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
   const tag = cipher.getAuthTag();
-  // Format: iv:tag:ciphertext (all hex)
   return `${iv.toString("hex")}:${tag.toString("hex")}:${encrypted.toString("hex")}`;
 }
 
@@ -33,18 +28,19 @@ export function decrypt(ciphertext: string): string {
  */
 export async function POST(request: NextRequest) {
   try {
-    const user = await getAuthenticatedUser(request);
+    const auth = await getAuthenticatedUser(request);
 
-    if (!user) {
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { user, accessToken } = auth;
     const body = await request.json();
-    const admin = createAdminClient();
+    const db = accessToken ? createUserClient(accessToken) : createAdminClient();
 
     if (body.refreshToken) {
       const encrypted = encrypt(body.refreshToken);
-      const { error } = await admin
+      const { error } = await db
         .from("users")
         .update({
           encrypted_refresh_token: encrypted,
@@ -57,12 +53,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Database error" }, { status: 500 });
       }
     } else {
-      // Just mark the user as having completed auth setup
-      const { error } = await admin
+      const { error } = await db
         .from("users")
-        .update({
-          google_calendar_connected: false,
-        })
+        .update({ google_calendar_connected: false })
         .eq("id", user.id);
 
       if (error) {
@@ -71,7 +64,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // CRITICAL: Never return any token data to the client
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Token storage error:", error);

@@ -3,73 +3,93 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+
 export async function createClient() {
   const cookieStore = await cookies();
 
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder",
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {
-            // The `setAll` method was called from a Server Component.
-          }
-        },
+  return createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
       },
-    }
-  );
-}
-
-/**
- * Creates a Supabase client with the service role key.
- * This bypasses RLS and should ONLY be used in trusted server routes.
- */
-export function createAdminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    "placeholder";
-
-  return createSupabaseClient(url, key, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
+      setAll(cookiesToSet) {
+        try {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options)
+          );
+        } catch {
+          // Server Component — ignore
+        }
+      },
     },
   });
 }
 
 /**
- * Helper to get the authenticated user from either Bearer token or cookies.
+ * Creates a Supabase client with the service role key — bypasses RLS.
+ * Only use in trusted server routes.
  */
-export async function getAuthenticatedUser(request?: NextRequest) {
-  const admin = createAdminClient();
+export function createAdminClient() {
+  // Use service role key if available, otherwise anon key
+  const key = SUPABASE_SERVICE_KEY || SUPABASE_ANON_KEY;
+  return createSupabaseClient(SUPABASE_URL, key, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+}
 
+/**
+ * Creates a Supabase client authenticated with a specific user JWT.
+ * This allows the client to make requests that respect RLS policies
+ * with the user's identity, without needing a service role key.
+ */
+export function createUserClient(accessToken: string) {
+  return createSupabaseClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+}
+
+/**
+ * Gets the authenticated user from Bearer token or cookies.
+ * Returns both the user AND the access token for use with createUserClient.
+ */
+export async function getAuthenticatedUser(
+  request?: NextRequest
+): Promise<{ user: any; accessToken: string | null } | null> {
+  // 1. Try Bearer token first
   if (request) {
     const authHeader = request.headers.get("Authorization");
-    if (authHeader && authHeader.startsWith("Bearer ")) {
+    if (authHeader?.startsWith("Bearer ")) {
       const token = authHeader.substring(7);
       if (token && token !== "undefined" && token !== "null") {
-        const { data: { user }, error } = await admin.auth.getUser(token);
-        if (!error && user) return user;
+        // Validate via the anon client's auth endpoint (works without service key)
+        const tempClient = createSupabaseClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          global: { headers: { Authorization: `Bearer ${token}` } },
+          auth: { autoRefreshToken: false, persistSession: false },
+        });
+        const { data: { user }, error } = await tempClient.auth.getUser(token);
+        if (!error && user) return { user, accessToken: token };
       }
     }
   }
 
-  // Fallback to cookie-based session
+  // 2. Fallback to cookie-based session
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    return user || null;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      return { user: session.user, accessToken: session.access_token };
+    }
   } catch {
-    return null;
+    // ignore
   }
+
+  return null;
 }

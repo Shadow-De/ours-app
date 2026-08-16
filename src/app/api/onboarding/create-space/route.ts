@@ -1,30 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient, getAuthenticatedUser } from "@/lib/supabase/server";
+import { createUserClient, createAdminClient, getAuthenticatedUser } from "@/lib/supabase/server";
 
 /**
  * POST /api/onboarding/create-space
  * Creates the space and user documents in Supabase PostgreSQL.
- * Uses service role client to bypass RLS for initial user record creation.
  *
  * Body: { name: string }
  */
 export async function POST(request: NextRequest) {
   try {
-    const user = await getAuthenticatedUser(request);
+    const auth = await getAuthenticatedUser(request);
 
-    if (!user) {
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { user, accessToken } = auth;
     const { name } = await request.json();
     if (!name?.trim()) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
-    const admin = createAdminClient();
+    // Use user's own JWT to authenticate — RLS will allow the user to operate on their own data
+    // Fall back to admin client if service role key is available (bypasses RLS entirely)
+    const db = accessToken ? createUserClient(accessToken) : createAdminClient();
 
-    // 1. Create the space
-    const { data: spaceData, error: spaceError } = await admin
+    // 1. Create the space (RLS policy: "Users can insert a space" allows any auth'd user)
+    const { data: spaceData, error: spaceError } = await db
       .from("spaces")
       .insert({
         status: "awaiting_partner",
@@ -38,14 +40,19 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (spaceError || !spaceData) {
-      console.error("Supabase insert space error:", spaceError);
-      return NextResponse.json({ error: "Failed to create space" }, { status: 500 });
+      console.error("Supabase insert space error:", JSON.stringify(spaceError));
+      return NextResponse.json(
+        { error: "Failed to create space: " + (spaceError?.message || spaceError?.details || "unknown error") },
+        { status: 500 }
+      );
     }
 
     const spaceId = spaceData.id;
 
     // 2. Create or update the user record
-    const { error: userError } = await admin
+    // RLS policy: "Users can insert their own profile" — requires id = auth.uid()
+    // This works with createUserClient since the JWT sets auth.uid() correctly
+    const { error: userError } = await db
       .from("users")
       .upsert({
         id: user.id,
@@ -55,10 +62,13 @@ export async function POST(request: NextRequest) {
       });
 
     if (userError) {
-      console.error("Supabase upsert user error:", userError);
-      // Clean up: delete the space since user creation failed
-      await admin.from("spaces").delete().eq("id", spaceId);
-      return NextResponse.json({ error: "Failed to create user record: " + (userError.message || userError.details || "") }, { status: 500 });
+      console.error("Supabase upsert user error:", JSON.stringify(userError));
+      // Try cleanup
+      await db.from("spaces").delete().eq("id", spaceId);
+      return NextResponse.json(
+        { error: "Failed to create user record: " + (userError.message || userError.details || "unknown error") },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({ success: true, spaceId });

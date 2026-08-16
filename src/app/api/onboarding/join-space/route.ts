@@ -1,19 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient, getAuthenticatedUser } from "@/lib/supabase/server";
+import { createUserClient, createAdminClient, getAuthenticatedUser } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await getAuthenticatedUser(request);
+    const auth = await getAuthenticatedUser(request);
 
-    if (!user) {
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { user, accessToken } = auth;
     const { spaceId, realName, nicknameForA } = await request.json();
     if (!spaceId || !realName) {
       return NextResponse.json({ error: "Invalid data" }, { status: 400 });
     }
 
+    // Admin client to read/verify the space (needs to see it regardless of who owns it)
     const admin = createAdminClient();
 
     // 1. Verify the space exists and is awaiting a partner
@@ -35,6 +37,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "You cannot join your own space" }, { status: 400 });
     }
 
+    // Use user's JWT so RLS is satisfied for the write operations
+    const db = accessToken ? createUserClient(accessToken) : admin;
+
     // 2. Update space to active with partner B info
     const { error: spaceError } = await admin
       .from("spaces")
@@ -48,12 +53,15 @@ export async function POST(request: NextRequest) {
       .eq("id", spaceId);
 
     if (spaceError) {
-      console.error("Supabase update space error:", spaceError);
-      return NextResponse.json({ error: "Failed to join space" }, { status: 500 });
+      console.error("Supabase update space error:", JSON.stringify(spaceError));
+      return NextResponse.json(
+        { error: "Failed to join space: " + (spaceError.message || spaceError.details || "unknown error") },
+        { status: 500 }
+      );
     }
 
     // 3. Create user record for partner B
-    const { error: userError } = await admin
+    const { error: userError } = await db
       .from("users")
       .upsert({
         id: user.id,
@@ -63,8 +71,11 @@ export async function POST(request: NextRequest) {
       });
 
     if (userError) {
-      console.error("Supabase upsert user error:", userError);
-      return NextResponse.json({ error: "Failed to create user record: " + (userError.message || userError.details || "") }, { status: 500 });
+      console.error("Supabase upsert user error:", JSON.stringify(userError));
+      return NextResponse.json(
+        { error: "Failed to create user record: " + (userError.message || userError.details || "unknown error") },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({ success: true, spaceId });
