@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
-import { BraidDivider } from "@/components/Braid";
 
 export default function OnboardingPage() {
   const { user, signInWithGoogle } = useAuth();
@@ -20,12 +19,6 @@ export default function OnboardingPage() {
     setLoading(true);
     setError("");
     await signInWithGoogle();
-    // After OAuth sign in, we get redirected. 
-    // The session should be handled when we land back on the app.
-    // The auth listener in layout/page will fetch the user and route them.
-    // If we wanted a seamless popup experience we'd do it here, but OAuth redirect is safer.
-    // Actually, wait, since we use signInWithOAuth, the user leaves the page immediately.
-    // We shouldn't need to do anything else.
   };
 
   const handleCreateSpace = async () => {
@@ -34,7 +27,6 @@ export default function OnboardingPage() {
     setError("");
 
     try {
-      // Use our server route to handle it securely
       const { data: { session } } = await supabase.auth.getSession();
       
       const res = await fetch("/api/onboarding/create-space", {
@@ -52,7 +44,7 @@ export default function OnboardingPage() {
         try {
           data = JSON.parse(text);
         } catch {
-          throw new Error(`Vercel error (${res.status}): ${text.substring(0, 50) || res.statusText}`);
+          throw new Error(`Error (${res.status}): ${text.substring(0, 50)}`);
         }
         throw new Error(data.error || "Failed to create space");
       }
@@ -65,39 +57,38 @@ export default function OnboardingPage() {
     setLoading(false);
   };
 
-  // If we arrived here and we HAVE a user but NO spaceId, we must be at the name step
   if (user && step === "signin") {
     setStep("name");
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 py-12">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 py-12 relative overflow-hidden">
+      
+      {/* Background Ambience */}
+      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary-container/5 rounded-full blur-[100px] pointer-events-none translate-x-1/3 -translate-y-1/3" />
+      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-secondary-container/5 rounded-full blur-[100px] pointer-events-none -translate-x-1/3 translate-y-1/3" />
+
       <motion.div
-        className="w-full max-w-sm"
+        className="w-full max-w-sm relative z-10"
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: "easeOut" }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
       >
-        {/* Logo */}
-        <div className="text-center mb-2">
-          <h1 className="font-display text-7xl font-light text-primary tracking-tight">
+        <div className="text-center mb-10">
+          <h1 className="font-headline text-4xl sm:text-5xl text-primary font-bold tracking-tight mb-3">
             Us.
           </h1>
+          <p className="text-on-surface-variant font-body text-base">
+            A private space for just the two of you.
+          </p>
         </div>
 
-        {/* The Braid */}
-        <BraidDivider className="mb-6" />
-
-        <p className="text-center text-muted font-sans mb-10 text-base">
-          A private space for two.
-        </p>
-
         {step === "signin" && (
-          <div className="space-y-4">
+          <div className="space-y-5">
             <button
               onClick={handleGoogleSignIn}
               disabled={loading}
-              className="w-full flex items-center justify-center gap-3 bg-surface border border-white/10 rounded-full px-4 py-4 text-primary font-sans font-medium text-[15px] transition-all hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-partner-a disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-3 bg-surface-container hover:bg-surface-container-high inner-highlight rounded-DEFAULT px-4 py-4 text-on-surface font-body font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container disabled:opacity-50 disabled:cursor-not-allowed group active:scale-95"
             >
               {loading ? (
                 <LoadingSpinner />
@@ -108,11 +99,11 @@ export default function OnboardingPage() {
                 </>
               )}
             </button>
-            <p className="text-center text-xs text-muted font-sans">
-              This will ask for Google Calendar access
+            <p className="text-center text-xs text-on-surface-variant font-body px-4">
+              By continuing, you agree to start a shared sanctuary.
             </p>
             {error && (
-              <p className="text-center text-sm text-alert font-sans">{error}</p>
+              <p className="text-center text-sm text-alert font-body">{error}</p>
             )}
           </div>
         )}
@@ -121,31 +112,37 @@ export default function OnboardingPage() {
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="space-y-4"
+            className="space-y-6"
           >
-            <div>
-              <label className="block text-sm font-sans font-medium text-muted mb-1.5">
-                What&apos;s your name?
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleCreateSpace()}
-                placeholder="Your first name"
-                autoFocus
-                className="w-full bg-surface border-none rounded-2xl px-5 py-4 text-primary font-sans text-[15px] focus:outline-none focus:ring-2 focus:ring-partner-a placeholder:text-muted"
-              />
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-body font-medium text-on-surface-variant mb-2 px-1">
+                  What should we call you?
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleCreateSpace()}
+                    placeholder="Your first name"
+                    autoFocus
+                    className="w-full bg-surface-container inner-highlight rounded-DEFAULT px-5 py-4 text-on-surface font-body text-base focus:outline-none focus:ring-2 focus:ring-primary-container focus:border-transparent placeholder:text-on-surface-variant/50 transition-all border-none"
+                  />
+                </div>
+              </div>
             </div>
+
             <button
               onClick={handleCreateSpace}
               disabled={!name.trim() || loading}
-              className="w-full bg-partner-a text-background font-sans font-medium py-4 rounded-full transition-all hover:bg-partner-a/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-partner-a focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-full bg-primary-container text-on-primary-container font-headline font-bold py-4 rounded-DEFAULT transition-all hover:bg-primary-fixed-dim focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-40 disabled:cursor-not-allowed neon-glow-primary active:scale-95"
             >
-              {loading ? "Creating space…" : "Start our space →"}
+              {loading ? "Preparing..." : "Create Space"}
             </button>
+            
             {error && (
-              <p className="text-center text-sm text-alert font-sans">{error}</p>
+              <p className="text-center text-sm text-alert font-body">{error}</p>
             )}
           </motion.div>
         )}
@@ -180,7 +177,7 @@ function GoogleIcon() {
 function LoadingSpinner() {
   return (
     <svg
-      className="animate-spin w-5 h-5 text-muted"
+      className="animate-spin w-5 h-5 text-on-surface-variant"
       fill="none"
       viewBox="0 0 24 24"
       aria-hidden="true"

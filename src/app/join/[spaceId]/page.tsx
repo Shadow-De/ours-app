@@ -5,8 +5,6 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
-import { BraidDivider } from "@/components/Braid";
-import { Space } from "@/lib/types";
 
 interface JoinPageProps {
   params: Promise<{ spaceId: string }>;
@@ -31,8 +29,6 @@ export default function JoinPage({ params }: JoinPageProps) {
       setSpaceId(sid);
 
       if (user) {
-        // Fetch space to get Partner A's name using the admin bypass route
-        // We can't use the client directly because RLS prevents reading spaces we aren't in yet
         const res = await fetch(`/api/onboarding/check-space?spaceId=${sid}`);
         
         if (!res.ok) {
@@ -57,7 +53,6 @@ export default function JoinPage({ params }: JoinPageProps) {
   const handleSignIn = async () => {
     setLoading(true);
     setError("");
-    // Pass the current join URL so OAuth returns here after sign-in
     await signInWithGoogle(`/join/${spaceId}`);
   };
 
@@ -87,8 +82,6 @@ export default function JoinPage({ params }: JoinPageProps) {
         throw new Error(data.error || "Failed to join space");
       }
 
-      // Force a full page reload to home — this ensures the auth context
-      // re-fetches the user record and space data fresh from Supabase
       window.location.href = "/";
     } catch (err: any) {
       console.error(err);
@@ -98,47 +91,46 @@ export default function JoinPage({ params }: JoinPageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 py-12">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 py-12 relative overflow-hidden">
+      
+      {/* Background Ambience */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-secondary/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-primary-container/10 rounded-full blur-[100px] pointer-events-none -translate-x-1/3 translate-y-1/3" />
+
       <motion.div
-        className="w-full max-w-sm"
+        className="w-full max-w-sm relative z-10"
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
       >
-        <div className="text-center mb-2">
-          <h1 className="font-display text-6xl font-light text-primary tracking-tight">
+        <div className="text-center mb-10">
+          <h1 className="font-headline text-5xl font-bold text-on-background tracking-tight mb-2">
             Us.
           </h1>
         </div>
 
-        <BraidDivider className="mb-8" />
-
         {step === "signin" && (
-          <div className="space-y-4">
-            <div className="text-center mb-6">
-              <p className="text-xl font-sans font-medium text-primary">
-                Someone started your shared space.
+          <div className="space-y-5">
+            <div className="text-center mb-8">
+              <p className="text-xl font-body font-medium text-on-background">
+                You've been invited.
               </p>
-              <p className="text-sm text-muted mt-1">
-                Sign in with Google to join them.
+              <p className="text-sm text-on-surface-variant font-body mt-1">
+                Sign in with Google to join them in a shared private space.
               </p>
             </div>
 
             <button
               onClick={handleSignIn}
               disabled={loading}
-              className="w-full flex items-center justify-center gap-3 bg-surface border border-white/10 rounded-full px-4 py-4 text-primary font-sans font-medium text-[15px] transition-all hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-partner-b disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-3 bg-surface-container hover:bg-surface-container-high inner-highlight rounded-DEFAULT px-4 py-4 text-on-surface font-body font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary disabled:opacity-50 disabled:cursor-not-allowed group active:scale-95"
             >
               {loading ? <LoadingSpinner /> : <GoogleIcon />}
               Continue with Google
             </button>
 
-            <p className="text-center text-xs text-muted font-sans">
-              Just the two of you. Private and paired.
-            </p>
-
             {error && (
-              <p className="text-center text-sm text-alert">{error}</p>
+              <p className="text-center text-sm text-alert font-body">{error}</p>
             )}
           </div>
         )}
@@ -147,60 +139,61 @@ export default function JoinPage({ params }: JoinPageProps) {
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="space-y-4"
+            className="space-y-6"
           >
-            <div className="text-center mb-6">
-              <p className="text-xl font-sans font-medium text-primary">
-                <span className="text-partner-a">{partnerAName}</span> started your shared space.
+            <div className="text-center mb-8 bg-surface-container inner-highlight p-4 rounded-DEFAULT">
+              <p className="text-base font-body font-medium text-on-surface">
+                <span className="text-secondary font-bold">{partnerAName}</span> started your shared space.
               </p>
             </div>
 
-            <div>
-              <label className="block text-sm font-sans font-medium text-muted mb-1.5">
-                What&apos;s your name?
-              </label>
-              <input
-                type="text"
-                value={myName}
-                onChange={(e) => setMyName(e.target.value)}
-                placeholder="Your first name"
-                autoFocus
-                className="w-full bg-surface border-none rounded-2xl px-5 py-4 text-primary font-sans text-[15px] focus:outline-none focus:ring-2 focus:ring-partner-b placeholder:text-muted"
-              />
-            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-body font-medium text-on-surface-variant mb-2 px-1">
+                  What should we call you?
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={myName}
+                    onChange={(e) => setMyName(e.target.value)}
+                    placeholder="Your first name"
+                    autoFocus
+                    className="w-full bg-surface-container inner-highlight rounded-DEFAULT px-5 py-4 text-on-surface font-body text-base focus:outline-none focus:ring-2 focus:ring-secondary focus:border-transparent placeholder:text-on-surface-variant/50 transition-all border-none"
+                  />
+                </div>
+              </div>
 
-            <div>
-              <label className="block text-sm font-sans font-medium text-muted mb-1.5">
-                What should we call{" "}
-                <span className="text-partner-a">{partnerAName}</span>?
-              </label>
-              <input
-                type="text"
-                value={nickname}
-                onChange={(e) => setNickname(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleJoin()}
-                placeholder={`e.g. ${partnerAName.split(" ")[0]} or a nickname`}
-                className="w-full bg-surface border-none rounded-2xl px-5 py-4 text-primary font-sans text-[15px] focus:outline-none focus:ring-2 focus:ring-partner-b placeholder:text-muted"
-              />
-              <p className="text-xs text-muted mt-2 ml-1">
-                Leave blank to use their name as-is
-              </p>
+              <div>
+                <label className="block text-sm font-body font-medium text-on-surface-variant mb-2 px-1">
+                  What should we call <span className="text-secondary">{partnerAName}</span>?
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={nickname}
+                    onChange={(e) => setNickname(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleJoin()}
+                    placeholder={`e.g. ${partnerAName.split(" ")[0]} or a nickname`}
+                    className="w-full bg-surface-container inner-highlight rounded-DEFAULT px-5 py-4 text-on-surface font-body text-base focus:outline-none focus:ring-2 focus:ring-secondary focus:border-transparent placeholder:text-on-surface-variant/50 transition-all border-none"
+                  />
+                </div>
+                <p className="text-[11px] text-on-surface-variant/60 font-body mt-2 px-2 uppercase tracking-wide font-medium">
+                  Optional • Leave blank to use their name
+                </p>
+              </div>
             </div>
 
             <button
               onClick={handleJoin}
               disabled={!myName.trim() || loading}
-              className="w-full bg-partner-b text-background font-sans font-medium py-4 rounded-full transition-all hover:bg-partner-b/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-partner-b focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-40"
+              className="w-full bg-secondary text-on-secondary font-headline font-bold py-4 rounded-DEFAULT transition-all hover:bg-secondary-fixed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-40 disabled:cursor-not-allowed neon-glow-secondary active:scale-95"
             >
-              {loading ? "Joining…" : "Join the space →"}
+              {loading ? "Joining…" : "Join the space"}
             </button>
 
-            <p className="text-center text-xs text-muted">
-              Just the two of you. Private and paired.
-            </p>
-
             {error && (
-              <p className="text-center text-sm text-alert">{error}</p>
+              <p className="text-center text-sm text-alert font-body">{error}</p>
             )}
           </motion.div>
         )}
@@ -222,7 +215,7 @@ function GoogleIcon() {
 
 function LoadingSpinner() {
   return (
-    <svg className="animate-spin w-5 h-5 text-muted" fill="none" viewBox="0 0 24 24">
+    <svg className="animate-spin w-5 h-5 text-on-surface-variant" fill="none" viewBox="0 0 24 24">
       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
     </svg>

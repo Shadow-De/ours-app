@@ -1,64 +1,101 @@
-@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
 @import "tailwindcss";
 
 @theme {
-  --color-background: #0F1210;
-  --color-surface: #1B1F1C;
-  --color-surface-raised: #232823;
-  --color-primary: #F5F7F3;
-  --color-muted: #8F968F;
-  --color-partner-a: #C9F24C;
-  --color-partner-b: #4CE0C9;
-  --color-shared-gold: #E8D24C;
-  --color-alert: #FF6B5C;
-  --color-border: #2A302A;
+  --color-background: #111412;
+  --color-on-background: #e1e3df;
+  --color-surface: #111412;
+  --color-on-surface: #e1e3df;
+  --color-surface-variant: #323533;
+  --color-on-surface-variant: #c5c9b0;
+  --color-surface-container: #1d201e;
+  --color-surface-container-low: #191c1a;
+  --color-surface-container-lowest: #0c0f0d;
+  --color-surface-container-high: #282b28;
+  --color-surface-container-highest: #323533;
+  --color-surface-bright: #373a37;
+  --color-surface-dim: #111412;
+  --color-surface-raised: #282b28;
+  
+  --color-primary: #ffffff;
+  --color-on-primary: #283500;
+  --color-primary-container: #c9f24c;
+  --color-on-primary-container: #556d00;
+  --color-primary-fixed: #c9f24c;
+  --color-primary-fixed-dim: #aed530;
+  
+  --color-secondary: #47dcc5;
+  --color-on-secondary: #003730;
+  --color-secondary-container: #00baa5;
+  --color-on-secondary-container: #00443b;
+  --color-secondary-fixed: #6af9e1;
+  --color-secondary-fixed-dim: #47dcc5;
+  
+  --color-tertiary: #ffffff;
+  --color-on-tertiary: #383000;
+  --color-tertiary-container: #fae35c;
+  --color-on-tertiary-container: #726500;
+  
+  --color-error: #ffb4ab;
+  --color-on-error: #690005;
+  --color-error-container: #93000a;
+  --color-on-error-container: #ffdad6;
+  
+  --color-outline: #8f937c;
+  --color-outline-variant: #444936;
+  
+  --color-partner-a: #c9f24c;
+  --color-partner-b: #47dcc5;
+  --color-shared-gold: #fae35c;
+  --color-alert: #ffb4ab;
+  --color-border: #444936;
+  --color-input: #323533;
+  --color-ring: #c9f24c;
+  --color-paper: #111412;
+  --color-ink: #e1e3df;
 
-  --color-paper: #0F1210;
-  --color-ink: #F5F7F3;
-
+  --font-headline: "Space Grotesk", sans-serif;
   --font-display: "Space Grotesk", sans-serif;
   --font-sans: "Inter", system-ui, sans-serif;
+  --font-body: "Inter", sans-serif;
+  --font-stat: "IBM Plex Mono", monospace;
   --font-mono: "IBM Plex Mono", Consolas, monospace;
+
+  --radius-DEFAULT: 1rem;
+  --radius-lg: 2rem;
+  --radius-md: 1rem;
+  --radius-sm: 0.5rem;
+  --radius-xl: 3rem;
+  --radius-full: 9999px;
+
+  --spacing-stack-sm: 8px;
+  --spacing-stack-md: 16px;
+  --spacing-stack-lg: 32px;
+  --spacing-container-margin: 20px;
+  --spacing-section-gap: 48px;
+  --spacing-gutter: 16px;
 }
 
-*, *::before, *::after {
-  box-sizing: border-box;
-}
-
-html, body {
-  background-color: var(--color-background);
-  color: var(--color-primary);
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* Reduce motion for accessibility */
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+@layer base {
+  body {
+    background-color: var(--color-background);
+    color: var(--color-on-background);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
   }
 }
 
-/* Number formatting — IBM Plex Mono for all currency/stat values */
-.font-mono, [data-mono] {
-  font-family: var(--font-mono);
-  font-feature-settings: "tnum";
-  letter-spacing: -0.02em;
-}
-
-/* Display headings — Space Grotesk */
-.font-display, h1, h2, h3, h4 {
-  font-family: var(--font-display);
-}
-
-/* The Braid SVG component (preserved if still used) */
-.braid-divider {
-  width: 100%;
-  height: 24px;
-  overflow: visible;
+@layer utilities {
+  .inner-highlight {
+    box-shadow: inset 1px 1px 0px 0px rgba(255, 255, 255, 0.1);
+  }
+  
+  .neon-glow-primary {
+    box-shadow: 0 0 20px rgba(201, 242, 76, 0.1);
+  }
+  
+  .neon-glow-secondary {
+    box-shadow: 0 0 20px rgba(71, 220, 197, 0.1);
+  }
 }
 
 /* Scrollbar styling */
@@ -70,31 +107,13 @@ html, body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-border);
+  background: var(--color-outline-variant);
   border-radius: 2px;
-}
-
-/* Partner color utilities */
-.text-partner-a { color: var(--color-partner-a); }
-.text-partner-b { color: var(--color-partner-b); }
-.text-shared-gold { color: var(--color-shared-gold); }
-.text-alert { color: var(--color-alert); }
-.bg-partner-a { background-color: var(--color-partner-a); color: var(--color-background); }
-.bg-partner-b { background-color: var(--color-partner-b); color: var(--color-background); }
-.bg-shared-gold { background-color: var(--color-shared-gold); color: var(--color-background); }
-.bg-alert { background-color: var(--color-alert); }
-
-/* Card base */
-.card {
-  background: var(--color-surface);
-  border-radius: 1.5rem; /* 24px */
-  border: none;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05); /* faint top highlight */
 }
 
 /* Focus styles — accessible */
 :focus-visible {
-  outline: 2px solid var(--color-partner-a);
+  outline: 2px solid var(--color-primary-container);
   outline-offset: 2px;
   border-radius: 9999px;
 }
