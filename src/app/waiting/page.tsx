@@ -51,7 +51,7 @@ export default function WaitingPage() {
     if (data) {
       setSpace(data as any);
       if (data.status === 'active') {
-        router.push('/');
+        window.location.href = '/';
         return true;
       }
     }
@@ -80,7 +80,7 @@ export default function WaitingPage() {
           setSpace(updatedSpace);
           if (updatedSpace.status === "active") {
             clearInterval(pollInterval);
-            router.push("/");
+            window.location.href = "/";
           }
         }
       )
