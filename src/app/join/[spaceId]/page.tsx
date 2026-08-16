@@ -31,17 +31,16 @@ export default function JoinPage({ params }: JoinPageProps) {
       setSpaceId(sid);
 
       if (user) {
-        // Fetch space to get Partner A's name
-        const { data: spaceData, error: spaceError } = await supabase
-          .from("spaces")
-          .select("*")
-          .eq("id", sid)
-          .single();
-
-        if (spaceError || !spaceData) {
+        // Fetch space to get Partner A's name using the admin bypass route
+        // We can't use the client directly because RLS prevents reading spaces we aren't in yet
+        const res = await fetch(`/api/onboarding/check-space?spaceId=${sid}`);
+        
+        if (!res.ok) {
           setError("This invite link is invalid or has expired.");
           return;
         }
+
+        const spaceData = await res.json();
 
         if (spaceData.status !== "awaiting_partner") {
           setError("This space is already full.");
