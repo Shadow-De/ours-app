@@ -1,26 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createDecipheriv } from "crypto";
 import { google } from "googleapis";
-
-/**
- * Lazily initialize Firebase Admin SDK.
- * Avoids build-time initialization when env vars aren't set.
- */
-function getAdminDb() {
-  const { getApps, initializeApp, cert } = require("firebase-admin/app");
-  const { getFirestore } = require("firebase-admin/firestore");
-
-  if (!getApps().length) {
-    initializeApp({
-      credential: cert({
-        projectId: process.env.FIREBASE_ADMIN_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
-        privateKey: process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-      }),
-    });
-  }
-  return getFirestore();
-}
+import { createClient } from "@/lib/supabase/server";
 
 /**
  * Decrypt a token stored with AES-256-GCM.
@@ -42,15 +23,14 @@ function decrypt(ciphertext: string): string {
  * This enforces per-owner calendar isolation.
  */
 async function getCalendarClientForUser(uid: string) {
-  const adminDb = getAdminDb();
-  const userDoc = await adminDb.collection("users").doc(uid).get();
-  const userData = userDoc.data();
+  const supabase = await createClient();
+  const { data: userData } = await supabase.from('users').select('*').eq('id', uid).single();
 
-  if (!userData?.googleCalendarConnected || !userData?.encryptedRefreshToken) {
+  if (!userData?.google_calendar_connected || !userData?.encrypted_refresh_token) {
     return null;
   }
 
-  const refreshToken = decrypt(userData.encryptedRefreshToken);
+  const refreshToken = decrypt(userData.encrypted_refresh_token);
 
   const oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
@@ -70,7 +50,7 @@ async function getCalendarClientForUser(uid: string) {
  * - Only the assignee's calendar is written to, using their OWN refresh token
  * - The creator's identity (assignedBy) is irrelevant to which calendar is written
  * - If assignee hasn't connected calendar, returns a warning (not an error)
- * - Updates googleEventId on the Firestore document after sync
+ * - Updates google_event_id on the Supabase document after sync
  */
 export async function POST(request: NextRequest) {
   try {
@@ -81,24 +61,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const adminDb = getAdminDb();
+    const supabase = await createClient();
 
     // Resolve assignee's UID from the space document
-    const spaceDoc = await adminDb.collection("spaces").doc(spaceId).get();
-    const spaceData = spaceDoc.data();
+    const { data: spaceData } = await supabase.from('spaces').select('*').eq('id', spaceId).single();
     if (!spaceData) {
       return NextResponse.json({ error: "Space not found" }, { status: 404 });
     }
 
     const assigneeUid =
       assignedToRole === "a"
-        ? spaceData.partnerA?.uid
-        : spaceData.partnerB?.uid;
+        ? spaceData.partner_a_uid
+        : spaceData.partner_b_uid;
 
     const assigneeName =
       assignedToRole === "a"
-        ? spaceData.partnerA?.realName
-        : spaceData.partnerB?.realName;
+        ? spaceData.partner_a_real_name
+        : spaceData.partner_b_real_name;
 
     if (!assigneeUid) {
       return NextResponse.json(
@@ -119,14 +98,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch the Firestore document to get event details
-    const docRef = adminDb
-      .collection("spaces").doc(spaceId)
-      .collection(type === "shift" ? "shifts" : "reminders")
-      .doc(docId);
-
-    const docSnap = await docRef.get();
-    const data = docSnap.data();
+    // Fetch the document to get event details
+    const tableName = type === "shift" ? "shifts" : "reminders";
+    const { data } = await supabase.from(tableName).select('*').eq('id', docId).single();
     if (!data) {
       return NextResponse.json({ error: "Document not found" }, { status: 404 });
     }
@@ -153,7 +127,7 @@ export async function POST(request: NextRequest) {
       };
     } else {
       // Build calendar event for a reminder
-      const dueDate = data.dueDate;
+      const dueDate = data.due_date;
       if (!dueDate) {
         return NextResponse.json({ success: true, skipped: "No due date" });
       }
@@ -172,11 +146,11 @@ export async function POST(request: NextRequest) {
 
     let googleEventId: string;
 
-    if (data.googleEventId) {
+    if (data.google_event_id) {
       // Update existing event
       const response = await calendar.events.update({
         calendarId: "primary",
-        eventId: data.googleEventId,
+        eventId: data.google_event_id,
         requestBody: event,
       });
       googleEventId = response.data.id!;
@@ -189,8 +163,8 @@ export async function POST(request: NextRequest) {
       googleEventId = response.data.id!;
     }
 
-    // Store the event ID back on the Firestore document
-    await docRef.update({ googleEventId });
+    // Store the event ID back on the Supabase document
+    await supabase.from(tableName).update({ google_event_id: googleEventId }).eq('id', docId);
 
     return NextResponse.json({ success: true, googleEventId });
   } catch (error) {

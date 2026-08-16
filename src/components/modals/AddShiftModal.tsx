@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { addDoc, collection } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { Modal } from "@/components/Modal";
 import { computeHours, getWeekOf, toDateString } from "@/lib/utils";
@@ -23,6 +22,7 @@ export default function AddShiftModal({ onClose, spaceId, defaultDay }: AddShift
   const [wfh, setWfh] = useState(false);
   const [saving, setSaving] = useState(false);
   const [calendarMsg, setCalendarMsg] = useState<string | null>(null);
+  const supabase = createClient();
 
   const hours = computeHours(start, end);
   const weekOf = getWeekOf(new Date(day + "T00:00:00"));
@@ -30,18 +30,24 @@ export default function AddShiftModal({ onClose, spaceId, defaultDay }: AddShift
   const handleSave = async () => {
     setSaving(true);
     try {
-      const docRef = await addDoc(collection(db, "spaces", spaceId, "shifts"), {
-        person,
-        day,
-        start,
-        end,
-        wfh,
-        hours,
-        weekOf,
-        assignedBy: role,
-        googleEventId: null,
-        createdAt: new Date().toISOString(),
-      });
+      const { data: docData, error } = await supabase
+        .from('shifts')
+        .insert({
+          space_id: spaceId,
+          person,
+          day,
+          start,
+          end,
+          wfh,
+          hours,
+          week_of: weekOf,
+          assigned_by: role,
+          google_event_id: null,
+        })
+        .select()
+        .single();
+        
+      if (error || !docData) throw error || new Error("Failed to insert");
 
       // Trigger calendar sync server-side
       try {
@@ -50,7 +56,7 @@ export default function AddShiftModal({ onClose, spaceId, defaultDay }: AddShift
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             type: "shift",
-            docId: docRef.id,
+            docId: docData.id,
             spaceId,
             assignedToRole: person,
           }),

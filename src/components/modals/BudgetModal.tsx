@@ -1,10 +1,8 @@
 "use client";
 import { useState } from "react";
-import { doc, setDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { createClient } from "@/lib/supabase/client";
 import { Modal } from "@/components/Modal";
 import { DEFAULT_CATEGORIES } from "@/lib/types";
-import { formatCurrency } from "@/lib/utils";
 
 interface BudgetModalProps {
   onClose: () => void;
@@ -17,17 +15,28 @@ export default function BudgetModal({ onClose, spaceId, budgets }: BudgetModalPr
     Object.fromEntries(DEFAULT_CATEGORIES.map((c) => [c, budgets[c]?.toString() ?? ""]))
   );
   const [saving, setSaving] = useState(false);
+  const supabase = createClient();
 
   const handleSave = async () => {
     setSaving(true);
     try {
+      const inserts = [];
       for (const cat of DEFAULT_CATEGORIES) {
         const val = parseFloat(values[cat]);
         if (!isNaN(val) && val > 0) {
-          await setDoc(doc(db, "spaces", spaceId, "budgets", cat), {
-            category: cat, monthlyLimit: val,
+          inserts.push({
+            space_id: spaceId,
+            category: cat,
+            monthly_limit: val
           });
         }
+      }
+      
+      if (inserts.length > 0) {
+        // Upsert budgets
+        await supabase
+          .from('budgets')
+          .upsert(inserts, { onConflict: 'space_id, category' });
       }
       onClose();
     } catch (e) { console.error(e); }

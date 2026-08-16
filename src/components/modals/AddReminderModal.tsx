@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { addDoc, collection } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { Modal } from "@/components/Modal";
 import { toDateString } from "@/lib/utils";
@@ -19,20 +18,27 @@ export default function AddReminderModal({ onClose, spaceId }: AddReminderModalP
   const [dueDate, setDueDate] = useState("");
   const [saving, setSaving] = useState(false);
   const [calendarMsg, setCalendarMsg] = useState<string | null>(null);
+  const supabase = createClient();
 
   const handleSave = async () => {
     if (!text.trim()) return;
     setSaving(true);
     try {
-      const docRef = await addDoc(collection(db, "spaces", spaceId, "reminders"), {
-        text: text.trim(),
-        assignedTo,
-        assignedBy: role,
-        dueDate: dueDate || null,
-        done: false,
-        googleEventId: null,
-        createdAt: new Date().toISOString(),
-      });
+      const { data: docData, error } = await supabase
+        .from('reminders')
+        .insert({
+          space_id: spaceId,
+          text: text.trim(),
+          assigned_to: assignedTo,
+          assigned_by: role,
+          due_date: dueDate || null,
+          done: false,
+          google_event_id: null,
+        })
+        .select()
+        .single();
+        
+      if (error || !docData) throw error || new Error("Failed to insert");
 
       // Auto-sync to assignee's Google Calendar if due date is set
       if (dueDate) {
@@ -42,7 +48,7 @@ export default function AddReminderModal({ onClose, spaceId }: AddReminderModalP
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               type: "reminder",
-              docId: docRef.id,
+              docId: docData.id,
               spaceId,
               assignedToRole: assignedTo,
             }),

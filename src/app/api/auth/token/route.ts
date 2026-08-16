@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
+import { createClient } from "@/lib/supabase/server";
 
 /**
  * AES-256-GCM encryption for refresh tokens.
@@ -26,86 +27,47 @@ export function decrypt(ciphertext: string): string {
   return decipher.update(data) + decipher.final("utf8");
 }
 
-function decodeJwt(token: string) {
-  try {
-    const base64Url = token.split(".")[1];
-    if (!base64Url) return null;
-    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-    const jsonPayload = Buffer.from(base64, "base64").toString("utf-8");
-    return JSON.parse(jsonPayload);
-  } catch {
-    return null;
-  }
-}
-
 /**
  * POST /api/auth/token
- * Receives a Firebase ID token, verifies it, and stores the Google OAuth
- * refresh token encrypted in users/{uid}.encryptedRefreshToken via REST API.
- *
- * This is the ONLY server route that handles tokens.
- * Refresh tokens are NEVER returned to the client.
+ * Stores the Google OAuth refresh token encrypted in users table
  */
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const idToken = authHeader.split("Bearer ")[1];
-    const decodedToken = decodeJwt(idToken);
-    if (!decodedToken || !decodedToken.user_id) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
-    const uid = decodedToken.user_id;
-
     const body = await request.json();
-    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "ours-ef861";
 
-    // If a refresh token is provided (from a client-side OAuth flow), store it
     if (body.refreshToken) {
       const encrypted = encrypt(body.refreshToken);
-      const patchUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users/${uid}?updateMask.fieldPaths=encryptedRefreshToken&updateMask.fieldPaths=googleCalendarConnected`;
-      const patchBody = {
-        fields: {
-          encryptedRefreshToken: { stringValue: encrypted },
-          googleCalendarConnected: { booleanValue: true },
-        }
-      };
+      const { error } = await supabase
+        .from("users")
+        .update({
+          encrypted_refresh_token: encrypted,
+          google_calendar_connected: true,
+        })
+        .eq("id", user.id);
 
-      const res = await fetch(patchUrl, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
-        },
-        body: JSON.stringify(patchBody),
-      });
-
-      if (!res.ok) {
-        throw new Error(`Firestore REST error: ${await res.text()}`);
+      if (error) {
+        console.error("Supabase error saving token:", error);
+        return NextResponse.json({ error: "Database error" }, { status: 500 });
       }
     } else {
       // Just mark the user as having completed auth setup
-      const patchUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users/${uid}?updateMask.fieldPaths=googleCalendarConnected`;
-      const patchBody = {
-        fields: {
-          googleCalendarConnected: { booleanValue: false },
-        }
-      };
+      const { error } = await supabase
+        .from("users")
+        .update({
+          google_calendar_connected: false,
+        })
+        .eq("id", user.id);
 
-      const res = await fetch(patchUrl, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
-        },
-        body: JSON.stringify(patchBody),
-      });
-
-      if (!res.ok) {
-        throw new Error(`Firestore REST error: ${await res.text()}`);
+      if (error) {
+        console.error("Supabase error updating user:", error);
+        return NextResponse.json({ error: "Database error" }, { status: 500 });
       }
     }
 

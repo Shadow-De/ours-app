@@ -1,7 +1,6 @@
 "use client";
 import { useState } from "react";
-import { addDoc, collection } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { Modal } from "@/components/Modal";
 
@@ -9,14 +8,20 @@ export default function AddWishlistModal({ onClose, spaceId }: { onClose: () => 
   const { role } = useAuth();
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
+  const supabase = createClient();
 
   const handleSave = async () => {
     if (!text.trim()) return;
     setSaving(true);
     try {
-      await addDoc(collection(db, "spaces", spaceId, "wishlist"), {
-        text: text.trim(), promotedToGoalId: null, createdAt: new Date().toISOString(), createdBy: role,
-      });
+      await supabase
+        .from('wishlist')
+        .insert({
+          space_id: spaceId,
+          text: text.trim(),
+          promoted_to_goal_id: null,
+          created_by: role,
+        });
       onClose();
     } catch (e) { console.error(e); }
     setSaving(false);

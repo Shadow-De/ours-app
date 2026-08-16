@@ -3,11 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { BraidDivider } from "@/components/Braid";
-// generateSpaceId removed — using crypto.randomUUID() inline
 
 export default function OnboardingPage() {
   const { user, signInWithGoogle } = useAuth();
@@ -16,41 +14,18 @@ export default function OnboardingPage() {
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const supabase = createClient();
 
   const handleGoogleSignIn = async () => {
     setLoading(true);
     setError("");
-    const result = await signInWithGoogle();
-    if (result?.user) {
-      try {
-        // Check if user already has a space (with timeout to prevent hanging)
-        const { getDoc, doc: firestoreDoc } = await import("firebase/firestore");
-        const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("firestore_timeout")), 6000)
-        );
-        const userSnap = await Promise.race([
-          getDoc(firestoreDoc(db, "users", result.user.uid)),
-          timeoutPromise,
-        ]);
-        if (userSnap.exists()) {
-          // Already paired — redirect to home
-          router.push("/");
-          return;
-        }
-        setStep("name");
-      } catch (err: any) {
-        console.error("Firestore error during sign-in:", err);
-        // On timeout or offline — assume new user and proceed to name step
-        if (err.message === "firestore_timeout" || err.code === "unavailable") {
-          setStep("name");
-        } else {
-          setError("Could not connect to database. Please check your connection.");
-        }
-      }
-    } else {
-      setError("Sign-in failed. Please try again.");
-    }
-    setLoading(false);
+    await signInWithGoogle();
+    // After OAuth sign in, we get redirected. 
+    // The session should be handled when we land back on the app.
+    // The auth listener in layout/page will fetch the user and route them.
+    // If we wanted a seamless popup experience we'd do it here, but OAuth redirect is safer.
+    // Actually, wait, since we use signInWithOAuth, the user leaves the page immediately.
+    // We shouldn't need to do anything else.
   };
 
   const handleCreateSpace = async () => {
@@ -59,13 +34,14 @@ export default function OnboardingPage() {
     setError("");
 
     try {
-      // Use server-side API route (Admin SDK) — bypasses browser Firestore WebChannel
-      const idToken = await user.getIdToken();
+      // Use our server route to handle it securely
+      const { data: { session } } = await supabase.auth.getSession();
+      
       const res = await fetch("/api/onboarding/create-space", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
+          Authorization: `Bearer ${session?.access_token}`,
         },
         body: JSON.stringify({ name: name.trim() }),
       });
@@ -81,20 +57,6 @@ export default function OnboardingPage() {
         throw new Error(data.error || "Failed to create space");
       }
 
-      // Also call token endpoint to set up calendar (non-fatal)
-      try {
-        await fetch("/api/auth/token", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${idToken}`,
-          },
-          body: JSON.stringify({ uid: user.uid }),
-        });
-      } catch {
-        // Non-fatal — calendar sync can be set up later
-      }
-
       router.push("/waiting");
     } catch (err: any) {
       console.error(err);
@@ -102,6 +64,11 @@ export default function OnboardingPage() {
     }
     setLoading(false);
   };
+
+  // If we arrived here and we HAVE a user but NO spaceId, we must be at the name step
+  if (user && step === "signin") {
+    setStep("name");
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 py-12">

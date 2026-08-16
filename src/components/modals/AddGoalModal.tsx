@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { addDoc, collection } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { Modal } from "@/components/Modal";
 import { toDateString } from "@/lib/utils";
@@ -18,21 +17,24 @@ export default function AddGoalModal({ onClose, spaceId }: AddGoalModalProps) {
   const [target, setTarget] = useState("");
   const [deadline, setDeadline] = useState("");
   const [saving, setSaving] = useState(false);
+  const supabase = createClient();
 
   const handleSave = async () => {
     if (!name.trim()) return;
     setSaving(true);
     try {
-      await addDoc(collection(db, "spaces", spaceId, "goals"), {
-        name: name.trim(),
-        target: parseFloat(target) || 0,
-        current: 0,
-        deadline: deadline || null,
-        celebrated: false,
-        contributions: { a: 0, b: 0 },
-        gifts: [],
-        createdAt: new Date().toISOString(),
-      });
+      await supabase
+        .from('goals')
+        .insert({
+          space_id: spaceId,
+          name: name.trim(),
+          target: parseFloat(target) || 0,
+          current: 0,
+          deadline: deadline || null,
+          celebrated: false,
+          contributions: { a: 0, b: 0 },
+          gifts: [],
+        });
       onClose();
     } catch (e) {
       console.error(e);

@@ -7,18 +7,8 @@ import {
   useState,
   ReactNode,
 } from "react";
-import {
-  onAuthStateChanged,
-  User,
-  signInWithPopup,
-  signOut as firebaseSignOut,
-} from "firebase/auth";
-import {
-  doc,
-  onSnapshot,
-  getDoc,
-} from "firebase/firestore";
-import { auth, db, googleProvider } from "@/lib/firebase";
+import { User, Session } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/client";
 import { Space, UserDoc, Role } from "@/lib/types";
 
 interface AuthContextValue {
@@ -28,7 +18,7 @@ interface AuthContextValue {
   role: Role | null;
   spaceId: string | null;
   loading: boolean;
-  signInWithGoogle: () => Promise<{ code: string; user: User } | null>;
+  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   // Display name helper — nickname if set, else real name
   displayName: (role: Role) => string;
@@ -43,104 +33,173 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [space, setSpace] = useState<Space | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Firebase auth listener
+  const supabase = createClient();
+
+  // Supabase auth listener
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
-      setUser(firebaseUser);
-      if (!firebaseUser) {
-        setUserDoc(null);
-        setSpace(null);
-        setLoading(false);
-        return;
-      }
+    let mounted = true;
 
-      // Fetch user document with a timeout — prevents infinite spinner
-      // when Firestore connection is stuck (e.g. cold start, network issue)
+    async function fetchUserData(userId: string) {
       try {
-        const userDocRef = doc(db, "users", firebaseUser.uid);
-        const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("firestore_timeout")), 6000)
-        );
-        const userSnap = await Promise.race([getDoc(userDocRef), timeoutPromise]);
+        const { data: userData, error: userError } = await supabase
+          .from("users")
+          .select("*")
+          .eq("id", userId)
+          .single();
 
-        if (!userSnap.exists()) {
-          setUserDoc(null);
-          setSpace(null);
-          setLoading(false);
+        if (userError || !userData) {
+          if (mounted) {
+            setUserDoc(null);
+            setSpace(null);
+            setLoading(false);
+          }
           return;
         }
 
-        const ud = userSnap.data() as UserDoc;
-        setUserDoc(ud);
-      } catch (err: any) {
-        if (err.message === "firestore_timeout") {
-          // Firestore WebChannel offline — fall back to server-side API
-          try {
-            const idToken = await firebaseUser.getIdToken();
-            const res = await fetch("/api/user/me", {
-              headers: { Authorization: `Bearer ${idToken}` },
-            });
-            if (res.ok) {
-              const data = await res.json();
-              if (data.exists) {
-                setUserDoc(data.data as UserDoc);
-              } else {
-                setUserDoc(null);
-                setSpace(null);
-              }
-            } else {
-              setUserDoc(null);
-              setSpace(null);
-            }
-          } catch {
-            setUserDoc(null);
-            setSpace(null);
+        const ud: UserDoc = {
+          spaceId: userData.space_id,
+          role: userData.role as Role,
+          googleCalendarConnected: userData.google_calendar_connected,
+        };
+
+        if (mounted) setUserDoc(ud);
+
+        if (userData.space_id) {
+          const { data: spaceData, error: spaceError } = await supabase
+            .from("spaces")
+            .select("*")
+            .eq("id", userData.space_id)
+            .single();
+
+          if (!spaceError && spaceData) {
+            const mappedSpace: Space = {
+              status: spaceData.status as any,
+              partnerA: {
+                uid: spaceData.partner_a_uid,
+                realName: spaceData.partner_a_real_name,
+                colorHex: spaceData.partner_a_color_hex,
+              },
+              partnerB: spaceData.partner_b_uid ? {
+                uid: spaceData.partner_b_uid,
+                realName: spaceData.partner_b_real_name,
+                colorHex: spaceData.partner_b_color_hex,
+              } : null,
+              nicknames: {
+                forA: spaceData.nickname_for_a || "",
+                forB: spaceData.nickname_for_b || "",
+              },
+              createdAt: spaceData.created_at,
+            };
+            // Ignore ID in the interface to keep types simple, or add it if needed
+            (mappedSpace as any).id = spaceData.id;
+            
+            if (mounted) setSpace(mappedSpace);
           }
         } else {
-          console.error("Error fetching user document in auth state change:", err);
-          setUserDoc(null);
-          setSpace(null);
+          if (mounted) setSpace(null);
         }
+      } catch (e) {
+        console.error("Error fetching user data:", e);
       } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser(session.user);
+        fetchUserData(session.user.id);
+      } else {
         setLoading(false);
       }
     });
 
-    return unsub;
-  }, []);
-
-  // Real-time space listener — updates both partners instantly
-  useEffect(() => {
-    if (!userDoc?.spaceId) {
-      setSpace(null);
-      return;
-    }
-
-    const spaceRef = doc(db, "spaces", userDoc.spaceId);
-    const unsub = onSnapshot(spaceRef, (snap) => {
-      if (snap.exists()) {
-        setSpace({ id: snap.id, ...snap.data() } as unknown as Space);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser(session.user);
+        fetchUserData(session.user.id);
+      } else {
+        setUser(null);
+        setUserDoc(null);
+        setSpace(null);
+        setLoading(false);
       }
     });
 
-    return unsub;
-  }, [userDoc?.spaceId]);
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [supabase]);
+
+  // Real-time space listener
+  useEffect(() => {
+    if (!userDoc?.spaceId) return;
+
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'spaces',
+          filter: `id=eq.${userDoc.spaceId}`
+        },
+        (payload) => {
+          const spaceData = payload.new;
+          const mappedSpace: Space = {
+            status: spaceData.status as any,
+            partnerA: {
+              uid: spaceData.partner_a_uid,
+              realName: spaceData.partner_a_real_name,
+              colorHex: spaceData.partner_a_color_hex,
+            },
+            partnerB: spaceData.partner_b_uid ? {
+              uid: spaceData.partner_b_uid,
+              realName: spaceData.partner_b_real_name,
+              colorHex: spaceData.partner_b_color_hex,
+            } : null,
+            nicknames: {
+              forA: spaceData.nickname_for_a || "",
+              forB: spaceData.nickname_for_b || "",
+            },
+            createdAt: spaceData.created_at,
+          };
+          (mappedSpace as any).id = spaceData.id;
+          setSpace(mappedSpace);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase, userDoc?.spaceId]);
 
   const signInWithGoogle = async () => {
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      // The credential includes access token — we pass the auth code to the server
-      // to exchange for a refresh token. Firebase doesn't give us the auth code
-      // directly; we use the credential's OAuth token approach via the server.
-      return { code: "", user: result.user };
+      await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          scopes: "https://www.googleapis.com/auth/calendar.events",
+          queryParams: {
+            access_type: "offline",
+            prompt: "consent",
+          },
+          redirectTo: `${window.location.origin}/api/auth/callback`,
+        },
+      });
     } catch (err) {
       console.error("Google sign-in error:", err);
-      return null;
     }
   };
 
   const signOut = async () => {
-    await firebaseSignOut(auth);
+    await supabase.auth.signOut();
   };
 
   const role = userDoc?.role ?? null;

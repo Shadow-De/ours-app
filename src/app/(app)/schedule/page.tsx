@@ -1,13 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  collection, query, where, onSnapshot, doc, updateDoc, orderBy
-} from "firebase/firestore";
+import { createClient } from "@/lib/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { format, addWeeks, startOfWeek, addDays, eachDayOfInterval } from "date-fns";
-import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import { BraidDivider } from "@/components/Braid";
 import { cn, getWeekOf, toDateString, computeHours } from "@/lib/utils";
@@ -26,6 +23,8 @@ export default function SchedulePage() {
   const [showAddReminder, setShowAddReminder] = useState(false);
   const [showAddChore, setShowAddChore] = useState(false);
 
+  const supabase = createClient();
+
   const weekStart = addWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), weekOffset);
   const weekEnd = addDays(weekStart, 6);
   const weekOf = toDateString(weekStart);
@@ -33,51 +32,68 @@ export default function SchedulePage() {
 
   useEffect(() => {
     if (!spaceId) return;
-    const unsubs: (() => void)[] = [];
 
-    // Shifts for this week
-    const shiftsQ = query(
-      collection(db, "spaces", spaceId, "shifts"),
-      where("weekOf", "==", weekOf)
-    );
-    unsubs.push(onSnapshot(shiftsQ, (snap) => {
-      setShifts(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Shift)));
-    }));
+    const fetchData = async () => {
+      // Shifts for this week
+      const { data: shiftsData } = await supabase
+        .from('shifts')
+        .select('*')
+        .eq('space_id', spaceId)
+        .eq('week_of', weekOf);
+      if (shiftsData) setShifts(shiftsData as any);
 
-    // All undone reminders
-    const remQ = query(
-      collection(db, "spaces", spaceId, "reminders"),
-      where("done", "==", false),
-      orderBy("dueDate", "asc")
-    );
-    unsubs.push(onSnapshot(remQ, (snap) => {
-      setReminders(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Reminder)));
-    }));
+      // All undone reminders
+      const { data: remData } = await supabase
+        .from('reminders')
+        .select('*')
+        .eq('space_id', spaceId)
+        .eq('done', false)
+        .order('due_date', { ascending: true });
+      if (remData) setReminders(remData as any);
 
-    // Chores
-    unsubs.push(onSnapshot(collection(db, "spaces", spaceId, "chores"), (snap) => {
-      setChores(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Chore)));
-    }));
+      // Chores
+      const { data: choresData } = await supabase
+        .from('chores')
+        .select('*')
+        .eq('space_id', spaceId);
+      if (choresData) setChores(choresData as any);
+    };
 
-    return () => unsubs.forEach((u) => u());
-  }, [spaceId, weekOf]);
+    fetchData();
+
+    const channel = supabase.channel('schedule_page_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shifts', filter: `space_id=eq.${spaceId}` }, () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reminders', filter: `space_id=eq.${spaceId}` }, () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'chores', filter: `space_id=eq.${spaceId}` }, () => fetchData())
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [spaceId, weekOf, supabase]);
 
   // Hours totals
-  const aHours = shifts.filter((s) => s.person === "a").reduce((sum, s) => sum + s.hours, 0);
-  const bHours = shifts.filter((s) => s.person === "b").reduce((sum, s) => sum + s.hours, 0);
+  const aHours = shifts.filter((s) => s.person === "a").reduce((sum, s) => sum + Number(s.hours), 0);
+  const bHours = shifts.filter((s) => s.person === "b").reduce((sum, s) => sum + Number(s.hours), 0);
 
   const markChoreDone = async (chore: Chore) => {
     if (!spaceId) return;
-    await updateDoc(doc(db, "spaces", spaceId, "chores", chore.id), {
-      turn: chore.turn === "a" ? "b" : "a",
-      lastDoneBy: chore.turn,
-      lastDoneAt: new Date().toISOString(),
-    });
+    await supabase
+      .from('chores')
+      .update({
+        turn: chore.turn === "a" ? "b" : "a",
+        last_done_by: chore.turn,
+        last_done_at: new Date().toISOString(),
+      })
+      .eq('id', chore.id);
   };
 
   const markReminderDone = async (id: string) => {
     if (!spaceId) return;
-    await updateDoc(doc(db, "spaces", spaceId, "reminders", id), { done: true });
+    await supabase
+      .from('reminders')
+      .update({ done: true })
+      .eq('id', id);
   };
 
   return (
@@ -212,10 +228,10 @@ export default function SchedulePage() {
                   </p>
                   <p className="text-[11px] uppercase tracking-wide text-muted font-sans mt-1">
                     for {displayName(r.assignedTo)} · from {displayName(r.assignedBy)}
-                    {r.dueDate && ` · ${format(new Date(r.dueDate + "T00:00:00"), "MMM d")}`}
+                    {(r as any).due_date && ` · ${format(new Date((r as any).due_date + "T00:00:00"), "MMM d")}`}
                   </p>
                 </div>
-                {r.googleEventId && (
+                {(r as any).google_event_id && (
                   <span className="text-xs text-partner-a font-sans" title="Synced to Google Calendar">
                     📅
                   </span>

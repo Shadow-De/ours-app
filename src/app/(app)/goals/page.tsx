@@ -1,12 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  collection, query, onSnapshot, orderBy, doc, updateDoc, addDoc
-} from "firebase/firestore";
+import { createClient } from "@/lib/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus } from "lucide-react";
-import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import { BraidDivider, BraidProgressBar } from "@/components/Braid";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -26,55 +23,98 @@ export default function GoalsPage() {
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [showAddWishlist, setShowAddWishlist] = useState(false);
   const [celebratingGoal, setCelebratingGoal] = useState<Goal | null>(null);
+  
+  const supabase = createClient();
 
   useEffect(() => {
     if (!spaceId) return;
-    const unsubs: (() => void)[] = [];
 
-    unsubs.push(onSnapshot(
-      query(collection(db, "spaces", spaceId, "goals"), orderBy("createdAt", "desc")),
-      (snap) => {
-        const gs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Goal));
+    const fetchData = async () => {
+      // Goals
+      const { data: goalsData } = await supabase
+        .from('goals')
+        .select('*')
+        .eq('space_id', spaceId)
+        .order('created_at', { ascending: false });
+        
+      if (goalsData) {
+        const gs = goalsData.map(d => ({
+          ...d,
+          createdAt: d.created_at,
+          contributions: d.contributions || { a: 0, b: 0 }
+        })) as Goal[];
         setGoals(gs);
 
         // Check for newly completed goals (trigger celebration once)
-        gs.forEach((g) => {
+        gs.forEach(async (g) => {
           if (g.current >= g.target && !g.celebrated) {
             setCelebratingGoal(g);
             // Mark as celebrated immediately to prevent re-trigger
-            updateDoc(doc(db, "spaces", spaceId!, "goals", g.id), { celebrated: true });
+            await supabase
+              .from('goals')
+              .update({ celebrated: true })
+              .eq('id', g.id);
           }
         });
       }
-    ));
 
-    unsubs.push(onSnapshot(
-      query(collection(db, "spaces", spaceId, "wishlist"), orderBy("createdAt", "desc")),
-      (snap) => {
-        setWishlist(snap.docs.map((d) => ({ id: d.id, ...d.data() } as WishlistItem)));
+      // Wishlist
+      const { data: wishlistData } = await supabase
+        .from('wishlist')
+        .select('*')
+        .eq('space_id', spaceId)
+        .order('created_at', { ascending: false });
+        
+      if (wishlistData) {
+        setWishlist(wishlistData.map(d => ({
+          ...d,
+          createdAt: d.created_at,
+          promotedToGoalId: d.promoted_to_goal_id
+        })) as any);
       }
-    ));
+    };
 
-    return () => unsubs.forEach((u) => u());
-  }, [spaceId]);
+    fetchData();
+
+    const channel = supabase.channel('goals_page_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'goals', filter: `space_id=eq.${spaceId}` }, () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'wishlist', filter: `space_id=eq.${spaceId}` }, () => fetchData())
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [spaceId, supabase]);
 
   const promoteToGoal = async (item: WishlistItem) => {
     if (!spaceId) return;
+    
     // Add a new goal with the wishlist item's text
-    const goalRef = await addDoc(collection(db, "spaces", spaceId, "goals"), {
-      name: item.text,
-      target: 0,
-      current: 0,
-      deadline: null,
-      celebrated: false,
-      contributions: { a: 0, b: 0 },
-      gifts: [],
-      createdAt: new Date().toISOString(),
-    });
+    const { data: goalData, error } = await supabase
+      .from('goals')
+      .insert({
+        space_id: spaceId,
+        name: item.text,
+        target: 0,
+        current: 0,
+        deadline: null,
+        celebrated: false,
+        contributions: { a: 0, b: 0 },
+        gifts: [],
+      })
+      .select()
+      .single();
+      
+    if (error || !goalData) {
+      console.error("Error creating goal:", error);
+      return;
+    }
+
     // Mark wishlist item as promoted
-    await updateDoc(doc(db, "spaces", spaceId, "wishlist", item.id), {
-      promotedToGoalId: goalRef.id,
-    });
+    await supabase
+      .from('wishlist')
+      .update({ promoted_to_goal_id: goalData.id })
+      .eq('id', item.id);
   };
 
   const activeWishlist = wishlist.filter((w) => !w.promotedToGoalId);

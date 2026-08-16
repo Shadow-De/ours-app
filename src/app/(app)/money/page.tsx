@@ -1,12 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  collection, query, onSnapshot, orderBy, where, limit
-} from "firebase/firestore";
+import { createClient } from "@/lib/supabase/client";
 import { motion } from "framer-motion";
 import { Plus, ChevronDown, TrendingUp } from "lucide-react";
-import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import { BraidDivider } from "@/components/Braid";
 import {
@@ -26,31 +23,45 @@ export default function MoneyPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [filterPayer, setFilterPayer] = useState<string>("all");
+  const supabase = createClient();
 
   useEffect(() => {
     if (!spaceId) return;
-    const unsubs: (() => void)[] = [];
 
-    // All transactions, recent first
-    const txQ = query(
-      collection(db, "spaces", spaceId, "transactions"),
-      orderBy("date", "desc"),
-      limit(100)
-    );
-    unsubs.push(onSnapshot(txQ, (snap) => {
-      setTransactions(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Transaction)));
-    }));
+    const fetchData = async () => {
+      // Transactions
+      const { data: txData } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('space_id', spaceId)
+        .order('date', { ascending: false })
+        .limit(100);
+      if (txData) setTransactions(txData as any);
 
-    // Budgets
-    const budgetsQ = collection(db, "spaces", spaceId, "budgets");
-    unsubs.push(onSnapshot(budgetsQ, (snap) => {
-      const b: Record<string, number> = {};
-      snap.docs.forEach((d) => { b[d.id] = (d.data() as Budget).monthlyLimit; });
-      setBudgets(b);
-    }));
+      // Budgets
+      const { data: budgetsData } = await supabase
+        .from('budgets')
+        .select('*')
+        .eq('space_id', spaceId);
+      
+      if (budgetsData) {
+        const b: Record<string, number> = {};
+        budgetsData.forEach((d) => { b[d.category] = Number(d.monthly_limit); });
+        setBudgets(b);
+      }
+    };
 
-    return () => unsubs.forEach((u) => u());
-  }, [spaceId]);
+    fetchData();
+
+    const channel = supabase.channel('money_page_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions', filter: `space_id=eq.${spaceId}` }, () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'budgets', filter: `space_id=eq.${spaceId}` }, () => fetchData())
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [spaceId, supabase]);
 
   // Compute this month's spending per category
   const thisMonth = format(startOfMonth(new Date()), "yyyy-MM");
@@ -60,7 +71,7 @@ export default function MoneyPage() {
 
   const spendingByCategory: Record<string, number> = {};
   monthlyTransactions.forEach((t) => {
-    spendingByCategory[t.category] = (spendingByCategory[t.category] || 0) + t.amount;
+    spendingByCategory[t.category] = (spendingByCategory[t.category] || 0) + Number(t.amount);
   });
 
   // Balance computation — from shared-payer transactions only
@@ -221,7 +232,7 @@ export default function MoneyPage() {
                     "font-mono text-[15px] font-medium",
                     t.type === "expense" ? "text-primary" : "text-partner-a"
                   )}>
-                    {t.type === "expense" ? "-" : "+"}{formatCurrency(t.amount)}
+                    {t.type === "expense" ? "-" : "+"}{formatCurrency(Number(t.amount))}
                   </p>
                   <p className="text-[11px] uppercase tracking-wide text-muted font-sans mt-1">
                     {t.payer === "shared" ? "Shared" : displayName(t.payer as "a" | "b")}

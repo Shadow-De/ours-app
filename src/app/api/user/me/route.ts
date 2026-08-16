@@ -1,72 +1,39 @@
-import { NextRequest, NextResponse } from "next/server";
-
-function decodeJwt(token: string) {
-  try {
-    const base64Url = token.split(".")[1];
-    if (!base64Url) return null;
-    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-    const jsonPayload = Buffer.from(base64, "base64").toString("utf-8");
-    return JSON.parse(jsonPayload);
-  } catch {
-    return null;
-  }
-}
+import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
 /**
  * GET /api/user/me
- * Returns the current user's Firestore document via Firestore REST API.
- * Used as a fallback when the browser Firestore client is offline.
- *
- * Auth: Bearer <Firebase ID Token>
+ * Retrieves the current user's document from Supabase
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const idToken = authHeader.split("Bearer ")[1];
-    const decodedToken = decodeJwt(idToken);
-    if (!decodedToken || !decodedToken.user_id) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    const { data, error } = await supabase
+      .from("users")
+      .select("space_id, role, google_calendar_connected")
+      .eq("id", user.id)
+      .single();
+
+    if (error || !data) {
+      return NextResponse.json({ exists: false, data: null });
     }
-    const uid = decodedToken.user_id;
 
-    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "ours-ef861";
-    const getUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users/${uid}`;
-
-    const res = await fetch(getUrl, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${idToken}`,
+    return NextResponse.json({
+      exists: true,
+      data: {
+        spaceId: data.space_id,
+        role: data.role,
+        googleCalendarConnected: data.google_calendar_connected,
       },
     });
-
-    if (res.status === 404) {
-      return NextResponse.json({ exists: false }, { status: 200 });
-    }
-
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error("Firestore REST error:", errorText);
-      throw new Error(`Firestore API returned ${res.status}: ${errorText.substring(0, 50)}`);
-    }
-
-    const data = await res.json();
-    
-    // Convert Firestore Document format to normal JS object
-    const userData: any = {};
-    if (data.fields) {
-      for (const [key, value] of Object.entries(data.fields)) {
-        const val = value as any;
-        userData[key] = val.stringValue ?? val.booleanValue ?? val.integerValue ?? val.timestampValue ?? null;
-      }
-    }
-
-    return NextResponse.json({ exists: true, data: userData });
   } catch (error) {
-    console.error("Get user error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error("GET /api/user/me error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

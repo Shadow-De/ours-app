@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { addDoc, collection } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { Modal } from "@/components/Modal";
 import { DEFAULT_CATEGORIES } from "@/lib/types";
@@ -23,22 +22,25 @@ export default function AddTransactionModal({ onClose, spaceId }: AddTransaction
   const [date, setDate] = useState(toDateString(new Date()));
   const [recurring, setRecurring] = useState<"" | "monthly" | "weekly">("");
   const [saving, setSaving] = useState(false);
+  const supabase = createClient();
 
   const handleSave = async () => {
     if (!amount || isNaN(parseFloat(amount))) return;
     setSaving(true);
     try {
-      await addDoc(collection(db, "spaces", spaceId, "transactions"), {
-        amount: parseFloat(amount),
-        category,
-        type,
-        payer,
-        note: note.trim(),
-        date,
-        recurring: recurring || null,
-        createdAt: new Date().toISOString(),
-        createdBy: role,
-      });
+      await supabase
+        .from('transactions')
+        .insert({
+          space_id: spaceId,
+          amount: parseFloat(amount),
+          category,
+          type,
+          payer,
+          note: note.trim(),
+          date,
+          recurring: recurring || null,
+          created_by: role,
+        });
       onClose();
     } catch (e) {
       console.error(e);

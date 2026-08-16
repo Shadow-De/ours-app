@@ -3,23 +3,13 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  collection,
-  query,
-  where,
-  onSnapshot,
-  doc,
-  updateDoc,
-  orderBy,
-  limit,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { BraidDivider, BraidProgressBar } from "@/components/Braid";
 import { PartnerAvatar } from "@/components/PartnerAvatar";
-import { cn, formatCurrency, getGreeting, getWeekOf, toDateString, computeBalance, formatBalance } from "@/lib/utils";
+import { cn, formatCurrency, getGreeting, getWeekOf, toDateString } from "@/lib/utils";
 import { Transaction, Reminder, Goal, Shift } from "@/lib/types";
-import { format, startOfWeek, addDays, isToday } from "date-fns";
+import { format, startOfWeek, addDays } from "date-fns";
 import { Wallet, Clock, Bell, Star } from "lucide-react";
 import AddTransactionModal from "@/components/modals/AddTransactionModal";
 import AddShiftModal from "@/components/modals/AddShiftModal";
@@ -30,6 +20,7 @@ import NicknameModal from "@/components/modals/NicknameModal";
 export default function HomePage() {
   const { user, userDoc, space, role, spaceId, displayName } = useAuth();
   const router = useRouter();
+  const supabase = createClient();
 
   // Data state
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -52,54 +43,64 @@ export default function HomePage() {
     if (userDoc?.spaceId && space?.status === "awaiting_partner") router.push("/waiting");
   }, [user, userDoc, space, loading, router]);
 
-  // Real-time data subscriptions
+  // Data fetch and subscriptions
   useEffect(() => {
     if (!spaceId) return;
 
     const weekOf = getWeekOf();
-    const unsubs: (() => void)[] = [];
 
-    // Transactions this week
-    const txQ = query(
-      collection(db, "spaces", spaceId, "transactions"),
-      orderBy("date", "desc"),
-      limit(50)
-    );
-    unsubs.push(onSnapshot(txQ, (snap) => {
-      setTransactions(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Transaction)));
+    const fetchData = async () => {
+      // Transactions
+      const { data: txData } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('space_id', spaceId)
+        .order('date', { ascending: false })
+        .limit(50);
+      if (txData) setTransactions(txData as any);
+
+      // Reminders
+      const { data: remData } = await supabase
+        .from('reminders')
+        .select('*')
+        .eq('space_id', spaceId)
+        .eq('assigned_to', role)
+        .eq('done', false);
+      if (remData) setReminders(remData as any);
+
+      // Goals
+      const { data: goalsData } = await supabase
+        .from('goals')
+        .select('*')
+        .eq('space_id', spaceId)
+        .limit(10);
+      if (goalsData) setGoals(goalsData as any);
+
+      // Shifts
+      const { data: shiftsData } = await supabase
+        .from('shifts')
+        .select('*')
+        .eq('space_id', spaceId)
+        .eq('week_of', weekOf);
+      if (shiftsData) setShifts(shiftsData as any);
+
       setLoading(false);
-    }));
+    };
 
-    // Pending reminders assigned to current user
-    const remQ = query(
-      collection(db, "spaces", spaceId, "reminders"),
-      where("assignedTo", "==", role),
-      where("done", "==", false)
-    );
-    unsubs.push(onSnapshot(remQ, (snap) => {
-      setReminders(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Reminder)));
-    }));
+    fetchData();
 
-    // Goals
-    const goalsQ = query(
-      collection(db, "spaces", spaceId, "goals"),
-      limit(10)
-    );
-    unsubs.push(onSnapshot(goalsQ, (snap) => {
-      setGoals(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Goal)));
-    }));
+    // Set up real-time subscriptions
+    const channel = supabase.channel('home_page_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions', filter: `space_id=eq.${spaceId}` }, () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reminders', filter: `space_id=eq.${spaceId}` }, () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'goals', filter: `space_id=eq.${spaceId}` }, () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shifts', filter: `space_id=eq.${spaceId}` }, () => fetchData())
+      .subscribe();
 
-    // This week's shifts
-    const shiftsQ = query(
-      collection(db, "spaces", spaceId, "shifts"),
-      where("weekOf", "==", weekOf)
-    );
-    unsubs.push(onSnapshot(shiftsQ, (snap) => {
-      setShifts(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Shift)));
-    }));
-
-    return () => unsubs.forEach((u) => u());
-  }, [spaceId, role]);
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [spaceId, role, supabase]);
 
   // Computed values
   const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
@@ -111,11 +112,11 @@ export default function HomePage() {
   });
   const totalSpent = thisWeekTransactions
     .filter((t) => t.type === "expense")
-    .reduce((sum, t) => sum + t.amount, 0);
+    .reduce((sum, t) => sum + Number(t.amount), 0);
 
   const myShifts = shifts.filter((s) => s.person === role);
-  const partnerRole = role === "a" ? "b" : "a";
-  const myHours = myShifts.reduce((sum, s) => sum + s.hours, 0);
+  const partnerRole = role === "a" ? "b" : role === "b" ? "a" : null;
+  const myHours = myShifts.reduce((sum, s) => sum + Number(s.hours), 0);
 
   const freeEvenings = weekDays.filter((day) => {
     const hasMeShift = shifts.some((s) => s.person === role && s.day === day);
@@ -164,7 +165,7 @@ export default function HomePage() {
         </h1>
         <div className="flex items-center gap-2 mt-1">
           <PartnerAvatar role={role!} initial={myInitial} size="sm" />
-          <PartnerAvatar role={partnerRole} initial={partnerInitial} size="sm" />
+          <PartnerAvatar role={partnerRole!} initial={partnerInitial} size="sm" />
         </div>
       </header>
 
@@ -205,7 +206,6 @@ export default function HomePage() {
                 key={r.id}
                 reminder={r}
                 fromName={displayName(r.assignedBy)}
-                spaceId={spaceId!}
               />
             ))}
           </motion.div>
@@ -327,7 +327,7 @@ export default function HomePage() {
         <NicknameModal
           onClose={() => setShowNickname(false)}
           spaceId={spaceId!}
-          partnerRole={partnerRole}
+          partnerRole={partnerRole!}
           partnerRealName={space?.partnerB?.realName ?? ""}
         />
       )}
@@ -362,20 +362,17 @@ function QuickAddButton({
 function ReminderBanner({
   reminder,
   fromName,
-  spaceId,
 }: {
   reminder: Reminder;
   fromName: string;
-  spaceId: string;
 }) {
   const [marking, setMarking] = useState(false);
+  const supabase = createClient();
 
   const markDone = async () => {
     setMarking(true);
     try {
-      await updateDoc(doc(db, "spaces", spaceId, "reminders", reminder.id), {
-        done: true,
-      });
+      await supabase.from("reminders").update({ done: true }).eq("id", reminder.id);
     } catch (e) {
       console.error(e);
     }

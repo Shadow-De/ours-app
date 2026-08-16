@@ -1,13 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  collection, query, onSnapshot, orderBy, doc, updateDoc, addDoc, setDoc
-} from "firebase/firestore";
 import { motion } from "framer-motion";
 import { Flame, LogOut, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
-import { db } from "@/lib/firebase";
+import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { BraidDivider } from "@/components/Braid";
 import { cn, computeStreak, getWeekOf } from "@/lib/utils";
@@ -27,51 +24,84 @@ export default function MorePage() {
   const [showNicknameFor, setShowNicknameFor] = useState<"a" | "b" | null>(null);
   const [showBudgets, setShowBudgets] = useState(false);
   const [calendarStatus, setCalendarStatus] = useState<{ a: boolean; b: boolean }>({ a: false, b: false });
+  const supabase = createClient();
 
   useEffect(() => {
     if (!spaceId) return;
-    const unsubs: (() => void)[] = [];
 
-    unsubs.push(onSnapshot(
-      query(collection(db, "spaces", spaceId, "compliments"), orderBy("createdAt", "desc")),
-      (snap) => {
-        setCompliments(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Compliment)));
+    const fetchData = async () => {
+      const { data: compData } = await supabase
+        .from('compliments')
+        .select('*')
+        .eq('space_id', spaceId)
+        .order('created_at', { ascending: false });
+      if (compData) {
+        setCompliments(compData.map((d: any) => ({
+          id: d.id,
+          text: d.text,
+          from: d.from_role,
+          date: d.date,
+          createdAt: d.created_at,
+        })));
       }
-    ));
 
-    unsubs.push(onSnapshot(
-      query(collection(db, "spaces", spaceId, "checkins"), orderBy("weekOf", "desc")),
-      (snap) => {
-        setCheckins(snap.docs.map((d) => ({ id: d.id, ...d.data() } as CheckIn)));
+      const { data: checkinData } = await supabase
+        .from('checkins')
+        .select('*')
+        .eq('space_id', spaceId)
+        .order('week_of', { ascending: false });
+      if (checkinData) {
+        setCheckins(checkinData.map((d: any) => ({
+          id: d.id,
+          weekOf: d.week_of,
+          note: d.note,
+          submittedBy: d.submitted_by,
+          createdAt: d.created_at,
+        })));
       }
-    ));
 
-    unsubs.push(onSnapshot(collection(db, "spaces", spaceId, "budgets"), (snap) => {
-      const b: Record<string, number> = {};
-      snap.docs.forEach((d) => { b[d.id] = (d.data() as Budget).monthlyLimit; });
-      setBudgets(b);
-    }));
+      const { data: budgetData } = await supabase
+        .from('budgets')
+        .select('*')
+        .eq('space_id', spaceId);
+      if (budgetData) {
+        const b: Record<string, number> = {};
+        budgetData.forEach((d: any) => { b[d.category] = d.monthly_limit; });
+        setBudgets(b);
+      }
+    };
 
-    return () => unsubs.forEach((u) => u());
-  }, [spaceId]);
+    fetchData();
+
+    const channel = supabase.channel('more_page_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'compliments', filter: `space_id=eq.${spaceId}` }, () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'checkins', filter: `space_id=eq.${spaceId}` }, () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'budgets', filter: `space_id=eq.${spaceId}` }, () => fetchData())
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [spaceId, supabase]);
 
   // Fetch calendar connection status from user docs
   useEffect(() => {
-    if (!space?.partnerA?.uid || !space?.partnerB?.uid) return;
-    // This reads from users/{uid}.googleCalendarConnected
+    if (!space?.partnerA?.uid) return;
+    
     const fetchStatus = async () => {
-      const { getDoc, doc: firestoreDoc } = await import("firebase/firestore");
-      const aSnap = await getDoc(firestoreDoc(db, "users", space.partnerA.uid));
-      const bSnap = space.partnerB
-        ? await getDoc(firestoreDoc(db, "users", space.partnerB.uid))
-        : null;
+      const { data: aData } = await supabase.from('users').select('google_calendar_connected').eq('id', space.partnerA.uid).single();
+      let bData = null;
+      if (space.partnerB?.uid) {
+        const { data } = await supabase.from('users').select('google_calendar_connected').eq('id', space.partnerB.uid).single();
+        bData = data;
+      }
       setCalendarStatus({
-        a: aSnap.data()?.googleCalendarConnected ?? false,
-        b: bSnap?.data()?.googleCalendarConnected ?? false,
+        a: aData?.google_calendar_connected ?? false,
+        b: bData?.google_calendar_connected ?? false,
       });
     };
     fetchStatus();
-  }, [space]);
+  }, [space, supabase]);
 
   const streak = computeStreak(checkins.map((c) => c.weekOf));
   const thisWeekOf = getWeekOf();
@@ -82,22 +112,20 @@ export default function MorePage() {
   };
 
   const connectCalendar = async () => {
-    // Trigger Google OAuth to get refresh token
-    const { signInWithPopup } = await import("firebase/auth");
-    const { auth, googleProvider } = await import("@/lib/firebase");
-    const result = await signInWithPopup(auth, googleProvider);
-
-    if (result.user && role) {
-      const idToken = await result.user.getIdToken();
-      await fetch("/api/auth/token", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
+    try {
+      await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          scopes: "https://www.googleapis.com/auth/calendar.events",
+          queryParams: {
+            access_type: "offline",
+            prompt: "consent",
+          },
+          redirectTo: `${window.location.origin}/api/auth/callback`,
         },
-        body: JSON.stringify({ uid: result.user.uid, connect: true }),
       });
-      setCalendarStatus((prev) => ({ ...prev, [role]: true }));
+    } catch (err) {
+      console.error("Google sign-in error:", err);
     }
   };
 

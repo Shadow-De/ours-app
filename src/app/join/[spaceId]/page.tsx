@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { BraidDivider } from "@/components/Braid";
 import { Space } from "@/lib/types";
@@ -23,40 +22,43 @@ export default function JoinPage({ params }: JoinPageProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [spaceId, setSpaceId] = useState<string>("");
+  const supabase = createClient();
+
+  useEffect(() => {
+    async function init() {
+      const resolvedParams = await params;
+      const sid = resolvedParams.spaceId;
+      setSpaceId(sid);
+
+      if (user) {
+        // Fetch space to get Partner A's name
+        const { data: spaceData, error: spaceError } = await supabase
+          .from("spaces")
+          .select("*")
+          .eq("id", sid)
+          .single();
+
+        if (spaceError || !spaceData) {
+          setError("This invite link is invalid or has expired.");
+          return;
+        }
+
+        if (spaceData.status !== "awaiting_partner") {
+          setError("This space is already full.");
+          return;
+        }
+
+        setPartnerAName(spaceData.partner_a_real_name);
+        setStep("names");
+      }
+    }
+    init();
+  }, [user, params, supabase]);
 
   const handleSignIn = async () => {
     setLoading(true);
     setError("");
-    const result = await signInWithGoogle();
-    if (!result?.user) {
-      setError("Sign-in failed. Please try again.");
-      setLoading(false);
-      return;
-    }
-
-    // Resolve the params promise
-    const resolvedParams = await params;
-    const sid = resolvedParams.spaceId;
-    setSpaceId(sid);
-
-    // Fetch space to get Partner A's name
-    const spaceSnap = await getDoc(doc(db, "spaces", sid));
-    if (!spaceSnap.exists()) {
-      setError("This invite link is invalid or has expired.");
-      setLoading(false);
-      return;
-    }
-
-    const spaceData = spaceSnap.data() as Space;
-    if (spaceData.status !== "awaiting_partner") {
-      setError("This space is already full.");
-      setLoading(false);
-      return;
-    }
-
-    setPartnerAName(spaceData.partnerA.realName);
-    setStep("names");
-    setLoading(false);
+    await signInWithGoogle();
   };
 
   const handleJoin = async () => {
@@ -65,40 +67,23 @@ export default function JoinPage({ params }: JoinPageProps) {
     setError("");
 
     try {
-      const { setDoc } = await import("firebase/firestore");
+      const { data: { session } } = await supabase.auth.getSession();
 
-      // Update space: add Partner B, activate space, set B's nickname for A
-      await updateDoc(doc(db, "spaces", spaceId), {
-        status: "active",
-        partnerB: {
-          uid: user.uid,
-          realName: myName.trim(),
-          colorHex: "#5B5296",
+      const res = await fetch("/api/onboarding/join-space", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token}`,
         },
-        "nicknames.forA": nickname.trim() || partnerAName,
+        body: JSON.stringify({ 
+          spaceId, 
+          realName: myName.trim(), 
+          nicknameForA: nickname.trim() || partnerAName 
+        }),
       });
 
-      // Create user document for Partner B
-      await setDoc(doc(db, "users", user.uid), {
-        spaceId,
-        role: "b",
-        googleCalendarConnected: false,
-        createdAt: new Date().toISOString(),
-      });
-
-      // Store calendar token server-side
-      try {
-        const token = await user.getIdToken();
-        await fetch("/api/auth/token", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ uid: user.uid }),
-        });
-      } catch {
-        // Non-fatal
+      if (!res.ok) {
+        throw new Error("Failed to join space");
       }
 
       router.push("/");

@@ -1,7 +1,6 @@
 "use client";
 import { useState } from "react";
-import { addDoc, collection } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { Modal } from "@/components/Modal";
 
@@ -10,14 +9,21 @@ export default function AddChoreModal({ onClose, spaceId }: { onClose: () => voi
   const [name, setName] = useState("");
   const [turn, setTurn] = useState<"a" | "b">(role ?? "a");
   const [saving, setSaving] = useState(false);
+  const supabase = createClient();
 
   const handleSave = async () => {
     if (!name.trim()) return;
     setSaving(true);
     try {
-      await addDoc(collection(db, "spaces", spaceId, "chores"), {
-        name: name.trim(), turn, lastDoneBy: null, lastDoneAt: null,
-      });
+      await supabase
+        .from('chores')
+        .insert({
+          space_id: spaceId,
+          name: name.trim(),
+          turn,
+          last_done_by: null,
+          last_done_at: null,
+        });
       onClose();
     } catch (e) { console.error(e); }
     setSaving(false);

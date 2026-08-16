@@ -1,104 +1,63 @@
 import { NextRequest, NextResponse } from "next/server";
-
-function decodeJwt(token: string) {
-  try {
-    const base64Url = token.split(".")[1];
-    if (!base64Url) return null;
-    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-    const jsonPayload = Buffer.from(base64, "base64").toString("utf-8");
-    return JSON.parse(jsonPayload);
-  } catch {
-    return null;
-  }
-}
+import { createClient } from "@/lib/supabase/server";
 
 /**
  * POST /api/onboarding/create-space
- * Creates the space and user documents server-side via Firestore REST API.
- * Bypasses the browser Firestore WebChannel which can get stuck offline.
+ * Creates the space and user documents in Supabase PostgreSQL.
  *
  * Body: { name: string }
- * Auth: Bearer <Firebase ID Token>
  */
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
+    const supabase = await createClient();
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const idToken = authHeader.split("Bearer ")[1];
-    const decodedToken = decodeJwt(idToken);
-    if (!decodedToken || !decodedToken.user_id) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
-    const uid = decodedToken.user_id;
 
     const { name } = await request.json();
     if (!name?.trim()) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
-    const spaceId = crypto.randomUUID();
-    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "ours-ef861";
+    // Use a transaction/RPC or sequential inserts if RLS is configured appropriately
+    // 1. Create the space
+    const { data: spaceData, error: spaceError } = await supabase
+      .from("spaces")
+      .insert({
+        status: "awaiting_partner",
+        partner_a_uid: user.id,
+        partner_a_real_name: name.trim(),
+        partner_a_color_hex: "#2F6E62",
+        nickname_for_a: "",
+        nickname_for_b: "",
+      })
+      .select("id")
+      .single();
 
-    // Use Firestore REST API batch commit
-    const commitUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:commit`;
-    const body = {
-      writes: [
-        {
-          update: {
-            name: `projects/${projectId}/databases/(default)/documents/spaces/${spaceId}`,
-            fields: {
-              status: { stringValue: "awaiting_partner" },
-              partnerA: {
-                mapValue: {
-                  fields: {
-                    uid: { stringValue: uid },
-                    realName: { stringValue: name.trim() },
-                    colorHex: { stringValue: "#2F6E62" },
-                  }
-                }
-              },
-              nicknames: {
-                mapValue: {
-                  fields: {
-                    forA: { stringValue: "" },
-                    forB: { stringValue: "" },
-                  }
-                }
-              },
-              createdAt: { timestampValue: new Date().toISOString() },
-            }
-          }
-        },
-        {
-          update: {
-            name: `projects/${projectId}/databases/(default)/documents/users/${uid}`,
-            fields: {
-              spaceId: { stringValue: spaceId },
-              role: { stringValue: "a" },
-              googleCalendarConnected: { booleanValue: false },
-              createdAt: { timestampValue: new Date().toISOString() },
-            }
-          }
-        }
-      ]
-    };
+    if (spaceError || !spaceData) {
+      console.error("Supabase insert space error:", spaceError);
+      return NextResponse.json({ error: "Failed to create space" }, { status: 500 });
+    }
 
-    const res = await fetch(commitUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${idToken}`,
-      },
-      body: JSON.stringify(body),
-    });
+    const spaceId = spaceData.id;
 
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error("Firestore REST error:", errorText);
-      throw new Error(`Firestore API returned ${res.status}: ${errorText.substring(0, 50)}`);
+    // 2. Create or update the user record
+    const { error: userError } = await supabase
+      .from("users")
+      .upsert({
+        id: user.id,
+        space_id: spaceId,
+        role: "a",
+        google_calendar_connected: false,
+      });
+
+    if (userError) {
+      console.error("Supabase upsert user error:", userError);
+      // Rollback space could be needed here, or RPC should be used.
+      return NextResponse.json({ error: "Failed to create user record" }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, spaceId });

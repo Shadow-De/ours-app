@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { addDoc, collection, doc, updateDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { Modal } from "@/components/Modal";
 import { Goal } from "@/lib/types";
@@ -19,6 +18,7 @@ export default function ContributeModal({ goal, onClose, spaceId }: ContributeMo
   const [amount, setAmount] = useState("");
   const [isSurprise, setIsSurprise] = useState(false);
   const [saving, setSaving] = useState(false);
+  const supabase = createClient();
 
   const handleContribute = async () => {
     const value = parseFloat(amount);
@@ -34,16 +34,25 @@ export default function ContributeModal({ goal, onClose, spaceId }: ContributeMo
           from: role,
           revealed: false,
         };
-        await updateDoc(doc(db, "spaces", spaceId, "goals", goal.id), {
-          current: goal.current + value,
-          gifts: [...(goal.gifts || []), newGift],
-        });
+        await supabase
+          .from('goals')
+          .update({
+            current: goal.current + value,
+            gifts: [...(goal.gifts || []), newGift],
+          })
+          .eq('id', goal.id);
       } else {
         // Regular contribution: update total and per-partner contributions
-        await updateDoc(doc(db, "spaces", spaceId, "goals", goal.id), {
-          current: goal.current + value,
-          [`contributions.${role}`]: (goal.contributions?.[role] || 0) + value,
-        });
+        await supabase
+          .from('goals')
+          .update({
+            current: goal.current + value,
+            contributions: {
+              ...goal.contributions,
+              [role]: (goal.contributions?.[role] || 0) + value
+            }
+          })
+          .eq('id', goal.id);
       }
       onClose();
     } catch (e) {

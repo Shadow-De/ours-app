@@ -1,7 +1,6 @@
 "use client";
 import { useState } from "react";
-import { addDoc, collection } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { Modal } from "@/components/Modal";
 import { getWeekOf } from "@/lib/utils";
@@ -10,14 +9,20 @@ export default function CheckInModal({ onClose, spaceId }: { onClose: () => void
   const { role } = useAuth();
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
+  const supabase = createClient();
 
   const handleSave = async () => {
     if (!note.trim()) return;
     setSaving(true);
     try {
-      await addDoc(collection(db, "spaces", spaceId, "checkins"), {
-        weekOf: getWeekOf(), note: note.trim(), submittedBy: role, createdAt: new Date().toISOString(),
-      });
+      await supabase
+        .from('checkins')
+        .insert({
+          space_id: spaceId,
+          week_of: getWeekOf(),
+          note: note.trim(),
+          submitted_by: role,
+        });
       onClose();
     } catch (e) { console.error(e); }
     setSaving(false);

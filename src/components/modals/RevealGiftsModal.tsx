@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { doc, updateDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { Modal } from "@/components/Modal";
 import { Goal } from "@/lib/types";
@@ -17,6 +16,7 @@ interface RevealGiftsModalProps {
 export default function RevealGiftsModal({ goal, onClose, spaceId }: RevealGiftsModalProps) {
   const { displayName } = useAuth();
   const [revealing, setRevealing] = useState(false);
+  const supabase = createClient();
 
   const hiddenGifts = goal.gifts?.filter((g) => !g.revealed) ?? [];
 
@@ -24,9 +24,10 @@ export default function RevealGiftsModal({ goal, onClose, spaceId }: RevealGifts
     setRevealing(true);
     try {
       const updatedGifts = (goal.gifts || []).map((g) => ({ ...g, revealed: true }));
-      await updateDoc(doc(db, "spaces", spaceId, "goals", goal.id), {
-        gifts: updatedGifts,
-      });
+      await supabase
+        .from('goals')
+        .update({ gifts: updatedGifts })
+        .eq('id', goal.id);
       onClose();
     } catch (e) {
       console.error(e);

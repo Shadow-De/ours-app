@@ -1,7 +1,6 @@
 "use client";
 import { useState } from "react";
-import { addDoc, collection } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { Modal } from "@/components/Modal";
 import { toDateString } from "@/lib/utils";
@@ -10,14 +9,20 @@ export default function AddComplimentModal({ onClose, spaceId }: { onClose: () =
   const { role } = useAuth();
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
+  const supabase = createClient();
 
   const handleSave = async () => {
     if (!text.trim()) return;
     setSaving(true);
     try {
-      await addDoc(collection(db, "spaces", spaceId, "compliments"), {
-        text: text.trim(), from: role, date: toDateString(new Date()), createdAt: new Date().toISOString(),
-      });
+      await supabase
+        .from('compliments')
+        .insert({
+          space_id: spaceId,
+          text: text.trim(),
+          from_role: role,
+          date: toDateString(new Date()),
+        });
       onClose();
     } catch (e) { console.error(e); }
     setSaving(false);

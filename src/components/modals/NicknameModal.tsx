@@ -1,7 +1,6 @@
 "use client";
 import { useState } from "react";
-import { doc, updateDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { createClient } from "@/lib/supabase/client";
 import { Modal } from "@/components/Modal";
 import { Role } from "@/lib/types";
 
@@ -15,14 +14,31 @@ interface NicknameModalProps {
 export default function NicknameModal({ onClose, spaceId, partnerRole, partnerRealName }: NicknameModalProps) {
   const [nickname, setNickname] = useState("");
   const [saving, setSaving] = useState(false);
+  const supabase = createClient();
 
   const handleSave = async () => {
     if (!nickname.trim()) return;
     setSaving(true);
     try {
-      // forA = nickname for Partner A, forB = nickname for Partner B
-      const field = partnerRole === "a" ? "nicknames.forA" : "nicknames.forB";
-      await updateDoc(doc(db, "spaces", spaceId), { [field]: nickname.trim() });
+      // Fetch current space to get nicknames jsonb
+      const { data: space } = await supabase
+        .from('spaces')
+        .select('nicknames')
+        .eq('id', spaceId)
+        .single();
+        
+      const currentNicknames = space?.nicknames || { forA: null, forB: null };
+      
+      const newNicknames = {
+        ...currentNicknames,
+        [partnerRole === "a" ? "forA" : "forB"]: nickname.trim()
+      };
+      
+      await supabase
+        .from('spaces')
+        .update({ nicknames: newNicknames })
+        .eq('id', spaceId);
+        
       onClose();
     } catch (e) { console.error(e); }
     setSaving(false);

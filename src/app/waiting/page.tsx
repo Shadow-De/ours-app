@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { doc, onSnapshot } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { BraidDivider } from "@/components/Braid";
 import { Copy, Share2, Check } from "lucide-react";
@@ -15,6 +14,7 @@ export default function WaitingPage() {
   const router = useRouter();
   const [copied, setCopied] = useState(false);
   const [space, setSpace] = useState<Space | null>(null);
+  const supabase = createClient();
 
   const inviteUrl =
     typeof window !== "undefined" && userDoc?.spaceId
@@ -25,19 +25,44 @@ export default function WaitingPage() {
   useEffect(() => {
     if (!userDoc?.spaceId) return;
 
-    const unsub = onSnapshot(doc(db, "spaces", userDoc.spaceId), (snap) => {
-      if (snap.exists()) {
-        const spaceData = snap.data() as Space;
-        setSpace(spaceData);
-        if (spaceData.status === "active") {
-          // Partner B has joined — go home
-          router.push("/");
+    // Initial fetch
+    const fetchSpace = async () => {
+      const { data, error } = await supabase
+        .from('spaces')
+        .select('*')
+        .eq('id', userDoc.spaceId)
+        .single();
+      
+      if (data) {
+        setSpace(data as Space);
+        if (data.status === 'active') {
+          router.push('/');
         }
       }
-    });
+    };
+    fetchSpace();
 
-    return unsub;
-  }, [userDoc?.spaceId, router]);
+    // Subscribe to changes
+    const channel = supabase
+      .channel(`space_status`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'spaces', filter: `id=eq.${userDoc.spaceId}` },
+        (payload) => {
+          const updatedSpace = payload.new as Space;
+          setSpace(updatedSpace);
+          if (updatedSpace.status === "active") {
+            // Partner B has joined — go home
+            router.push("/");
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userDoc?.spaceId, router, supabase]);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(inviteUrl);
@@ -57,7 +82,9 @@ export default function WaitingPage() {
     }
   };
 
-  const partnerAName = space?.partnerA?.realName ?? user?.displayName ?? "you";
+  // Type mismatch handling (we need to be careful with the typing here as we migrate)
+  // For now we'll just check if partnerA or partner_a exists depending on if it's the old or new shape
+  const partnerAName = space?.partnerA?.realName ?? (space as any)?.partner_a?.realName ?? user?.email?.split('@')[0] ?? "you";
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 py-12">
